@@ -18,6 +18,16 @@ interface IRequest extends Request {
   };
 }
 
+export const getAllRestaurants = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const restaurants = await Restaurant.find(); // Fetch all restaurants
+    res.status(200).json(restaurants);
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error });
+  }
+};
+
+
 export const get25RestaurantsNearLocation = async (
   req: IRequest,
   res: Response
