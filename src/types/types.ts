@@ -33,7 +33,7 @@ export interface IReservation {
   position: string[];
   notes?: string;
 }
-interface ITable {
+export interface ITable {
   _id?: string;
   position: string;
   partySize: number;
