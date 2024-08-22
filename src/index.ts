@@ -8,7 +8,6 @@ const PORT = process.env.PORT || 3000;
 const app: Express = express();
 
 
-
 async function main() {
     // Connect to database
     await connectDB();
