@@ -21,7 +21,7 @@ const ReservationSchema: Schema = new Schema({
   partySize: { type: Number, required: true },
   guestInfo: { type: GuestInfoSchema, required: true },
   reservationTime: { type: Date, required: true },
-  position: [{ type: String, required: true }],
+  position: { type: String, required: true },
   notes: { type: String },
 });
 

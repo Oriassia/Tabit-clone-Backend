@@ -30,7 +30,7 @@ export interface IReservation {
   partySize: number;
   guestInfo: IGuestInfo;
   reservationTime: Date;
-  position: string[];
+  position: string;
   notes?: string;
 }
 export interface ITable {
