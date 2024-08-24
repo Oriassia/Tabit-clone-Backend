@@ -15,7 +15,6 @@ export interface IRestaurant {
     longDescription?: string;
     menus: IRestaurantMenu[];
     photos: string[];
-    reservations: IReservation[];
   };
   tables: ITable[];
 }
