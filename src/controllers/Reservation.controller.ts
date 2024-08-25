@@ -23,13 +23,13 @@ interface IDeleteReservationRequest extends Request {
   body: ITable;
 }
 
-export async function addEditReservation(
+export async function addReservation(
   req: IAddReservationRequest,
   res: Response
 ): Promise<void> {
   try {
     const { restaurantId } = req.params;
-    const newTable = req.body;
+    const updatedTable = req.body;
 
     const restaurant = await Restaurant.findById(restaurantId);
 
@@ -37,9 +37,14 @@ export async function addEditReservation(
       res.status(404).json({ message: "Restaurant not found" });
       return;
     }
+    console.log(updatedTable._id);
+
+    restaurant.tables.forEach((table) => {
+      if (table._id == updatedTable._id) console.log(table._id);
+    });
 
     const tableIndex = restaurant.tables.findIndex(
-      (table) => table._id === newTable._id
+      (table) => table._id == updatedTable._id
     );
 
     if (tableIndex === -1) {
@@ -47,8 +52,9 @@ export async function addEditReservation(
       return;
     }
 
-    restaurant.tables[tableIndex] = newTable;
-    const reservation = newTable.reservations[newTable.reservations.length - 1];
+    restaurant.tables[tableIndex] = updatedTable;
+    const reservation =
+      updatedTable.reservations[updatedTable.reservations.length - 1];
     await restaurant.save();
     // sendSMS(reservation, restaurant);  will add only on production when link is fixed!
     res.status(201).json({
@@ -121,3 +127,5 @@ export async function deleteReservation(
     res.status(500).json({ message: "Server error" });
   }
 }
+
+//edit - gets a new reservation, with new table (reservation in the array) and old reservation id. first it adds the new reservation id, and then deletes the old one.
