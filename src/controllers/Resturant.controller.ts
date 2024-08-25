@@ -1,8 +1,6 @@
 import mongoose from "mongoose";
 import Restaurant from "../models/Resturant.model";
-import { IReservation, ITable } from "../types/types";
 import { Request, Response } from "express";
-import * as moment from "moment-timezone";
 
 interface Location {
   lat: number;
