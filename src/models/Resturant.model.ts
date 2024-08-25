@@ -71,7 +71,6 @@ const RestaurantSchema: Schema = new Schema({
     longDescription: { type: String },
     menus: [RestaurantMenuSchema],
     photos: [{ type: String }],
-    reservations: [ReservationSchema],
   },
   tables: [TableSchema],
 });
