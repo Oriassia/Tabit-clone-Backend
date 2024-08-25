@@ -2,7 +2,7 @@ import { Router } from "express";
 import {
   getAllRestaurants,
   getRestaurantById,
-} from "../controllers/Resturant.controller";
+} from "../controllers/Restaurant.controller";
 
 export const restaurantsRoute = Router();
 
