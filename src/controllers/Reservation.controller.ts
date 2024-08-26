@@ -3,9 +3,13 @@ import Restaurant from "../models/Resturant.model";
 import { IReservation, IRestaurant, ITable } from "../types/types";
 import { Request, Response } from "express";
 
-interface Location {
-  lat: number;
-  lng: number;
+interface IEditRequest extends Request {
+  params: {
+    restaurantId: string;
+    oldTableId: string;
+    oldReservationId: string;
+  };
+  body: ITable;
 }
 
 interface IAddReservationRequest extends Request {
@@ -13,6 +17,14 @@ interface IAddReservationRequest extends Request {
     restaurantId: string;
   };
   body: ITable;
+}
+
+interface IGetReservation extends Request {
+  params: {
+    restaurantId: string;
+    tableId: string;
+    reservationId: string;
+  };
 }
 
 interface IDeleteReservationRequest extends Request {
@@ -37,11 +49,6 @@ export async function addReservation(
       res.status(404).json({ message: "Restaurant not found" });
       return;
     }
-    console.log(updatedTable._id);
-
-    restaurant.tables.forEach((table) => {
-      if (table._id == updatedTable._id) console.log(table._id);
-    });
 
     const tableIndex = restaurant.tables.findIndex(
       (table) => table._id == updatedTable._id
@@ -128,4 +135,111 @@ export async function deleteReservation(
   }
 }
 
-//edit - gets a new reservation, with new table (reservation in the array) and old reservation id. first it adds the new reservation id, and then deletes the old one.
+export async function editReservation(req: IEditRequest, res: Response) {
+  try {
+    const {
+      restaurantId,
+      oldTableId,
+      oldReservationId: reservationId,
+    } = req.params;
+    const updatedTable = req.body;
+
+    // Find the restaurant
+    const restaurant = await Restaurant.findById(restaurantId);
+    if (!restaurant) {
+      return res.status(404).json({ message: "Restaurant not found" });
+    }
+
+    // Find the table to update
+    const tableIndex = restaurant.tables.findIndex(
+      (table) => table._id == updatedTable._id
+    );
+    if (tableIndex === -1) {
+      return res.status(404).json({ message: "Table not found" });
+    }
+
+    // Update the table with the new information
+    restaurant.tables[tableIndex] = updatedTable;
+
+    // Find the new reservation in the updated table
+    const newReservation =
+      updatedTable.reservations[updatedTable.reservations.length - 1];
+
+    if (!newReservation) {
+      return res.status(400).json({ message: "New reservation not found" });
+    }
+
+    // Find the old table and reservation to delete
+    const oldTableIndex = restaurant.tables.findIndex(
+      (table) => table._id == oldTableId
+    );
+
+    if (oldTableIndex === -1) {
+      return res.status(404).json({ message: "Old table not found" });
+    }
+
+    // Find the old reservation within the old table
+    const oldReservationIndex = restaurant.tables[
+      oldTableIndex
+    ].reservations.findIndex((reservation) => reservation._id == reservationId);
+
+    if (oldReservationIndex === -1) {
+      return res.status(404).json({ message: "Old reservation not found" });
+    }
+
+    // Remove the old reservation
+    restaurant.tables[oldTableIndex].reservations.splice(
+      oldReservationIndex,
+      1
+    );
+
+    // Save the changes to the restaurant
+    await restaurant.save();
+
+    // Return success response
+    res
+      .status(200)
+      .json({ message: "Reservation edited successfully", newReservation });
+  } catch (error: any) {
+    console.error(error); // Log the error for debugging
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+}
+
+export async function getReservation(req: IGetReservation, res: Response) {
+  try {
+    const { restaurantId, tableId, reservationId } = req.params;
+
+    // Find the restaurant by ID
+    const restaurant = await Restaurant.findById(restaurantId);
+    if (!restaurant) {
+      return res.status(404).json({ message: "Restaurant not found" });
+    }
+
+    // Find the table by ID
+    const table = restaurant.tables.find((table) => table._id == tableId);
+    if (!table) {
+      return res.status(404).json({ message: "Table not found" });
+    }
+
+    // Find the reservation by ID
+    const reservation = table.reservations.find(
+      (reservation) => reservation._id == reservationId
+    );
+    if (!reservation) {
+      return res.status(404).json({ message: "Reservation not found" });
+    }
+
+    // Return the found reservation and restaurant data
+    return res.status(200).json({
+      reservation: reservation,
+      restaurant: restaurant,
+    });
+  } catch (error: any) {
+    // Handle any errors that occur
+    console.error(error);
+    return res
+      .status(500)
+      .json({ message: "Server error", error: error.message });
+  }
+}
