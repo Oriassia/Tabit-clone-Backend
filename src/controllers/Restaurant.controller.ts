@@ -1,150 +1,134 @@
-import mongoose from "mongoose";
-import Restaurant from "../models/Resturant.model";
 import { Request, Response } from "express";
+import { connectDB } from "../config/db";
+import { RowDataPacket } from "mysql2/promise";
 
-interface Location {
-  lat: number;
-  lng: number;
-}
-
-interface IRequest extends Request {
-  body: {
-    location: Location;
-  };
-  query: {
-    guests: string;
-    date: string;
-    page?: string;
-  };
-}
-
+// Fetch all restaurants
 export async function getAllRestaurants(
   req: Request,
   res: Response
 ): Promise<void> {
-  try {
-    const restaurants = await Restaurant.find(); // Fetch all restaurants
+  let connection;
 
-    if (!restaurants || restaurants.length === 0) {
-      res.status(404).json({ message: "No restaurants found" });
+  try {
+    const pool = await connectDB();
+    connection = await pool.getConnection();
+
+    const [rows]: [RowDataPacket[], any] = await connection.query(
+      `SELECT * FROM Restaurants`
+    );
+
+    if (!rows || rows.length === 0) {
+      res.status(404).json({ message: "No restaurants found." });
       return;
     }
 
-    res.status(200).json(restaurants);
+    res.status(200).json(rows);
   } catch (error: any) {
-    if (error instanceof mongoose.Error) {
-      res
-        .status(400)
-        .json({ message: "Database query failed", error: error.message });
-    } else {
-      res.status(500).json({ message: "Server error", error: error.message });
+    console.error("Error fetching restaurants:", error);
+
+    if (error.code === "ER_CON_COUNT_ERROR") {
+      console.error("Too many connections to the database.");
+    } else if (error.code === "ECONNREFUSED") {
+      console.error("Database connection was refused.");
+    } else if (error.code === "ETIMEDOUT") {
+      console.error("Connection to the database timed out.");
+    } else if (error.code === "ER_ACCESS_DENIED_ERROR") {
+      console.error("Access denied for the database user.");
     }
+
+    res.status(500).json({ message: "Server error", error: error.message });
+  } finally {
+    if (connection) connection.release();
   }
 }
 
+// Fetch a single restaurant by ID
 export async function getRestaurantById(
   req: Request,
   res: Response
 ): Promise<void> {
+  const { id } = req.params;
+  let connection;
+
   try {
-    const { id } = req.params;
+    const pool = await connectDB();
+    connection = await pool.getConnection();
 
-    const restaurant = await Restaurant.findById(id); // Find restaurant by ID
+    const [rows]: [RowDataPacket[], any] = await connection.query(
+      `SELECT * FROM Restaurants WHERE restId = ?`,
+      [id]
+    );
 
-    if (!restaurant) {
-      res.status(404).json({ message: "Restaurant not found" });
+    if (!rows || rows.length === 0) {
+      res.status(404).json({ message: "Restaurant not found." });
       return;
     }
 
-    res.status(200).json(restaurant);
+    res.status(200).json(rows[0]);
   } catch (error: any) {
-    if (error instanceof mongoose.Error) {
-      res
-        .status(400)
-        .json({ message: "Database query failed", error: error.message });
-    } else {
-      res.status(500).json({ message: "Server error", error: error.message });
+    console.error("Error fetching restaurant:", error);
+
+    if (error.code === "ER_CON_COUNT_ERROR") {
+      console.error("Too many connections to the database.");
+    } else if (error.code === "ECONNREFUSED") {
+      console.error("Database connection was refused.");
+    } else if (error.code === "ETIMEDOUT") {
+      console.error("Connection to the database timed out.");
+    } else if (error.code === "ER_ACCESS_DENIED_ERROR") {
+      console.error("Access denied for the database user.");
     }
+
+    res.status(500).json({ message: "Server error", error: error.message });
+  } finally {
+    if (connection) connection.release();
   }
 }
 
-export const get25RestaurantsNearLocation = async (
-  req: IRequest,
+// Get available tables nearby based on location and time
+export async function getAvailableTables(
+  req: Request,
   res: Response
-) => {
-  const { location } = req.body;
-  const { lat, lng } = location;
-  const { guests, date, page = "1" } = req.query; // Ensure page is a string
+): Promise<void> {
+  const { lat, lng, date } = req.body;
+
+  if (!lat || !lng || !date) {
+    res.status(400).json({ message: "Missing latitude, longitude, or date." });
+    return;
+  }
+
+  let connection;
 
   try {
-    if (!lat || !lng || !guests || !date) {
-      return res.status(400).json({ message: "Invalid parameters." });
+    const pool = await connectDB();
+    connection = await pool.getConnection();
+
+    // Call the stored procedure to get available tables nearby
+    const [rows]: [RowDataPacket[], any] = await connection.query(
+      `CALL get_available_tables_nearby(?, ?, ?)`,
+      [lat, lng, date]
+    );
+
+    if (!rows || rows.length === 0) {
+      res.status(404).json({ message: "No available tables found." });
+      return;
     }
 
-    const guestsNum = parseInt(guests);
-    const requestedTime = new Date(date);
+    res.status(200).json(rows);
+  } catch (error: any) {
+    console.error("Error fetching available tables:", error);
 
-    if (isNaN(guestsNum) || isNaN(requestedTime.getTime())) {
-      return res
-        .status(400)
-        .json({ message: "Invalid guests or date format." });
+    if (error.code === "ER_CON_COUNT_ERROR") {
+      console.error("Too many connections to the database.");
+    } else if (error.code === "ECONNREFUSED") {
+      console.error("Database connection was refused.");
+    } else if (error.code === "ETIMEDOUT") {
+      console.error("Connection to the database timed out.");
+    } else if (error.code === "ER_ACCESS_DENIED_ERROR") {
+      console.error("Access denied for the database user.");
     }
 
-    // Calculate the time windows: 1.5 hours before and after
-    const minTime = new Date(requestedTime.getTime() - 1.5 * 60 * 60 * 1000);
-    const maxTime = new Date(requestedTime.getTime() + 1.5 * 60 * 60 * 1000);
-
-    // Pagination
-    const pageSize = 25;
-    const currentPage = parseInt(page); // Ensure page is an integer
-    const skip = (currentPage - 1) * pageSize;
-
-    // Query to find restaurants near the location
-    const restaurants = await Restaurant.aggregate([
-      {
-        $geoNear: {
-          near: {
-            type: "Point",
-            coordinates: [lng, lat],
-          },
-          distanceField: "distance",
-          maxDistance: 10000, // Adjust max distance as needed (in meters)
-          spherical: true,
-        },
-      },
-      {
-        $match: {
-          // Filter by available tables
-          "tables.reservations": {
-            $not: {
-              $elemMatch: {
-                $or: [
-                  {
-                    reservationTime: {
-                      $gte: minTime,
-                      $lte: maxTime,
-                    },
-                  },
-                ],
-              },
-            },
-          },
-          "tables.partySize": { $gte: guestsNum },
-        },
-      },
-      { $skip: skip },
-      { $limit: pageSize },
-    ]);
-
-    if (!restaurants.length) {
-      return res
-        .status(404)
-        .json({ message: "No restaurants found with available tables." });
-    }
-
-    res.json({ restaurants });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: "Server error." });
+    res.status(500).json({ message: "Server error", error: error.message });
+  } finally {
+    if (connection) connection.release();
   }
-};
+}

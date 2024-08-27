@@ -1,245 +1,327 @@
-import { Twilio } from "twilio";
-import Restaurant from "../models/Resturant.model";
-import { IReservation, IRestaurant, ITable } from "../types/types";
 import { Request, Response } from "express";
+import { connectDB } from "../config/db";
+import { RowDataPacket, ResultSetHeader } from "mysql2/promise";
+import { IReservation, IRestaurant } from "../types/types";
+import { Twilio } from "twilio";
 
-interface IEditRequest extends Request {
-  params: {
-    restaurantId: string;
-    oldTableId: string;
-    oldReservationId: string;
-  };
-  body: ITable;
-}
-
-interface IAddReservationRequest extends Request {
-  params: {
-    restaurantId: string;
-  };
-  body: ITable;
-}
-
-interface IGetReservation extends Request {
-  params: {
-    restaurantId: string;
-    tableId: string;
-    reservationId: string;
-  };
-}
-
-interface IDeleteReservationRequest extends Request {
-  params: {
-    restaurantId: string;
-    reservationId: string;
-  };
-  body: ITable;
-}
-
+// Add a reservation
 export async function addReservation(
-  req: IAddReservationRequest,
+  req: Request,
   res: Response
 ): Promise<void> {
+  const {
+    tableId,
+    restId,
+    partySize,
+    firstName,
+    lastName,
+    phoneNumber,
+    email,
+    notes,
+    date,
+  } = req.body;
+
+  if (
+    !tableId ||
+    !restId ||
+    !partySize ||
+    !firstName ||
+    !lastName ||
+    !phoneNumber ||
+    !email ||
+    !date
+  ) {
+    res.status(400).json({ message: "Missing required fields." });
+    return;
+  }
+
+  let connection;
+  let pool;
+
   try {
-    const { restaurantId } = req.params;
-    const updatedTable = req.body;
+    pool = await connectDB();
+    connection = await pool.getConnection();
 
-    const restaurant = await Restaurant.findById(restaurantId);
+    // Convert the date string into a Date object
+    const reservationDate = new Date(date);
+    const startTime = new Date(reservationDate);
+    const endTime = new Date(reservationDate);
 
-    if (!restaurant) {
-      res.status(404).json({ message: "Restaurant not found" });
+    // Set the time range (1.5 hours before and after)
+    startTime.setHours(startTime.getHours() - 1);
+    startTime.setMinutes(startTime.getMinutes() - 30);
+
+    endTime.setHours(endTime.getHours() + 1);
+    endTime.setMinutes(endTime.getMinutes() + 30);
+
+    // Check if there's any overlapping reservation on this table
+    const [existingReservations]: [RowDataPacket[], any] =
+      await connection.query(
+        `SELECT * FROM Reservations 
+       WHERE tableId = ? 
+       AND restId = ?
+       AND (date > ? AND date < ?)`,
+        [tableId, restId, startTime, endTime]
+      );
+
+    if (existingReservations.length > 0) {
+      res.status(409).json({
+        message: "Reservation conflicts with an existing reservation.",
+      });
       return;
     }
 
-    const tableIndex = restaurant.tables.findIndex(
-      (table) => table._id == updatedTable._id
+    // Insert the new reservation
+    const [result]: [ResultSetHeader, any] = await connection.query(
+      `INSERT INTO Reservations (tableId, restId, partySize, firstName, lastName, phoneNumber, email, notes, date) 
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        tableId,
+        restId,
+        partySize,
+        firstName,
+        lastName,
+        phoneNumber,
+        email,
+        notes,
+        reservationDate, // Pass the formatted date
+      ]
     );
 
-    if (tableIndex === -1) {
-      res.status(404).json({ message: "Table not found" });
+    const reservationId = result.insertId;
+
+    // Fetch the restaurant details
+    const [restaurantRows]: [RowDataPacket[], any] = await connection.query(
+      `SELECT * FROM Restaurants WHERE restId = ?`,
+      [restId]
+    );
+
+    if (!restaurantRows || restaurantRows.length === 0) {
+      res.status(404).json({ message: "Restaurant not found." });
       return;
     }
 
-    restaurant.tables[tableIndex] = updatedTable;
-    const reservation =
-      updatedTable.reservations[updatedTable.reservations.length - 1];
-    await restaurant.save();
-    // sendSMS(reservation, restaurant);  will add only on production when link is fixed!
+    const restaurant: IRestaurant = restaurantRows[0] as IRestaurant;
+
+    const reservation: IReservation = {
+      reservationId,
+      tableId,
+      restId,
+      partySize,
+      firstName,
+      lastName,
+      phoneNumber,
+      email,
+      date: reservationDate,
+      notes,
+    };
+    // sendSMS(reservation, restaurant);
     res.status(201).json({
-      message: "Reservation added successfully",
-      reservation: reservation,
+      message: "Reservation created successfully",
+      reservationId: reservationId,
     });
   } catch (error: any) {
-    res
-      .status(500)
-      .json({ message: "An unexpected error occurred", error: error.message });
+    console.error("Error adding reservation:", error);
+
+    if (error.code === "ER_CON_COUNT_ERROR") {
+      console.error("Too many connections to the database.");
+    } else if (error.code === "ECONNREFUSED") {
+      console.error("Database connection was refused.");
+    } else if (error.code === "ETIMEDOUT") {
+      console.error("Connection to the database timed out.");
+    } else if (error.code === "ER_ACCESS_DENIED_ERROR") {
+      console.error("Access denied for the database user.");
+    }
+
+    res.status(500).json({ message: "Server error", error: error.message });
+  } finally {
+    if (connection) connection.release();
   }
 }
 
 function sendSMS(reservation: IReservation, restaurant: IRestaurant) {
-  const { accountSid, authToken, number } = process.env;
+  const { TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_NUMBER } = process.env;
 
-  const client = new Twilio(accountSid, authToken);
+  if (!TWILIO_ACCOUNT_SID || !TWILIO_AUTH_TOKEN || !TWILIO_NUMBER) {
+    console.error("Twilio credentials are missing.");
+    throw new Error("Twilio credentials are not properly configured.");
+  }
+
+  const client = new Twilio(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN);
 
   client.messages
     .create({
-      body: `Hello ${reservation.guestInfo.guestFirstName}, 
-      Your reservation at ${restaurant.name} on ${reservation.reservationTime} for ${reservation.partySize} guests has been confirmed.
-      Please inform us if there are any changes.
-      Your table will be held for 15 minutes after the reserved time.
-      
-      For more information, visit: https://localhost:5173/${reservation._id}
-      `, // Message body
-
-      to: reservation.guestInfo.phoneNumber, // The recipient phone number (e.g., your phone number)
-      from: number, // Your Twilio phone number (get it from Twilio Console)
+      body: `Hello ${reservation.firstName}, 
+        Your reservation at ${restaurant.name} on ${reservation.date} for ${reservation.partySize} guests has been confirmed.
+        Please inform us if there are any changes.
+        Your table will be held for 15 minutes after the reserved time.
+        
+        For more information, visit: https://localhost:5173/${reservation.reservationId}
+      `,
+      to: reservation.phoneNumber,
+      from: TWILIO_NUMBER,
     })
     .then((message) => console.log(`Message sent: ${message.sid}`))
     .catch((error) => console.error(`Error sending message: ${error.message}`));
 }
 
-export async function deleteReservation(
-  req: IDeleteReservationRequest,
+// Get reservations by restaurant ID and date
+export async function getReservationByRestaurantIdAndDate(
+  req: Request,
   res: Response
 ): Promise<void> {
-  try {
-    const { restaurantId, reservationId } = req.params;
-    const table = req.body;
+  const { restId, date } = req.query;
 
-    const restaurant = await Restaurant.findById(restaurantId);
-
-    if (!restaurant) {
-      res.status(404).json({ message: "Restaurant not found" });
-      return;
-    }
-
-    if (!table) {
-      res.status(404).json({ message: "Table not found" });
-      return;
-    }
-
-    const reservationIndex = table.reservations.findIndex(
-      (reservation) => reservation._id === reservationId
-    );
-
-    if (reservationIndex === -1) {
-      res.status(404).json({ message: "Reservation not found" });
-      return;
-    }
-
-    table.reservations.splice(reservationIndex, 1);
-    await restaurant.save();
-
-    res.status(200).json({ message: "Reservation deleted successfully" });
-  } catch (error) {
-    res.status(500).json({ message: "Server error" });
+  if (!restId || !date) {
+    res.status(400).json({ message: "Missing restaurant ID or date." });
+    return;
   }
-}
 
-export async function editReservation(req: IEditRequest, res: Response) {
+  let connection;
+
   try {
-    const {
-      restaurantId,
-      oldTableId,
-      oldReservationId: reservationId,
-    } = req.params;
-    const updatedTable = req.body;
+    const pool = await connectDB();
+    connection = await pool.getConnection();
 
-    // Find the restaurant
-    const restaurant = await Restaurant.findById(restaurantId);
-    if (!restaurant) {
-      return res.status(404).json({ message: "Restaurant not found" });
-    }
-
-    // Find the table to update
-    const tableIndex = restaurant.tables.findIndex(
-      (table) => table._id == updatedTable._id
-    );
-    if (tableIndex === -1) {
-      return res.status(404).json({ message: "Table not found" });
-    }
-
-    // Update the table with the new information
-    restaurant.tables[tableIndex] = updatedTable;
-
-    // Find the new reservation in the updated table
-    const newReservation =
-      updatedTable.reservations[updatedTable.reservations.length - 1];
-
-    if (!newReservation) {
-      return res.status(400).json({ message: "New reservation not found" });
-    }
-
-    // Find the old table and reservation to delete
-    const oldTableIndex = restaurant.tables.findIndex(
-      (table) => table._id == oldTableId
+    // Query reservations by restaurant ID and date
+    const [rows]: [RowDataPacket[], any] = await connection.query(
+      `SELECT * FROM Reservations WHERE restId = ? AND DATE(date) = DATE(?)`,
+      [restId, date]
     );
 
-    if (oldTableIndex === -1) {
-      return res.status(404).json({ message: "Old table not found" });
+    if (!rows || rows.length === 0) {
+      res.status(404).json({
+        message: "No reservations found for the specified restaurant and date.",
+      });
+      return;
     }
 
-    // Find the old reservation within the old table
-    const oldReservationIndex = restaurant.tables[
-      oldTableIndex
-    ].reservations.findIndex((reservation) => reservation._id == reservationId);
-
-    if (oldReservationIndex === -1) {
-      return res.status(404).json({ message: "Old reservation not found" });
-    }
-
-    // Remove the old reservation
-    restaurant.tables[oldTableIndex].reservations.splice(
-      oldReservationIndex,
-      1
-    );
-
-    // Save the changes to the restaurant
-    await restaurant.save();
-
-    // Return success response
-    res
-      .status(200)
-      .json({ message: "Reservation edited successfully", newReservation });
+    res.status(200).json(rows);
   } catch (error: any) {
-    console.error(error); // Log the error for debugging
+    console.error("Error fetching reservations:", error);
+
+    if (error.code === "ER_CON_COUNT_ERROR") {
+      console.error("Too many connections to the database.");
+    } else if (error.code === "ECONNREFUSED") {
+      console.error("Database connection was refused.");
+    } else if (error.code === "ETIMEDOUT") {
+      console.error("Connection to the database timed out.");
+    } else if (error.code === "ER_ACCESS_DENIED_ERROR") {
+      console.error("Access denied for the database user.");
+    }
+
     res.status(500).json({ message: "Server error", error: error.message });
+  } finally {
+    if (connection) connection.release();
   }
 }
 
-export async function getReservation(req: IGetReservation, res: Response) {
+// Edit a reservation
+export async function editReservation(
+  req: Request,
+  res: Response
+): Promise<void> {
+  const { oldReservation, newDate, newPosition, newPartySize } = req.body;
+
+  if (!oldReservation || !newDate || !newPosition || !newPartySize) {
+    res.status(400).json({ message: "Missing required fields." });
+    return;
+  }
+
+  const { reservationId, restId } = oldReservation;
+
+  let connection;
+
   try {
-    const { restaurantId, tableId, reservationId } = req.params;
+    const pool = await connectDB();
+    connection = await pool.getConnection();
 
-    // Find the restaurant by ID
-    const restaurant = await Restaurant.findById(restaurantId);
-    if (!restaurant) {
-      return res.status(404).json({ message: "Restaurant not found" });
-    }
-
-    // Find the table by ID
-    const table = restaurant.tables.find((table) => table._id == tableId);
-    if (!table) {
-      return res.status(404).json({ message: "Table not found" });
-    }
-
-    // Find the reservation by ID
-    const reservation = table.reservations.find(
-      (reservation) => reservation._id == reservationId
+    // Call the stored procedure to find an available table and update the reservation
+    const [result]: [ResultSetHeader, any] = await connection.query(
+      `CALL edit_reservation(?, ?, ?, ?, ?)`,
+      [reservationId, restId, newDate, newPosition, newPartySize]
     );
-    if (!reservation) {
-      return res.status(404).json({ message: "Reservation not found" });
+
+    res.status(200).json({ message: "Reservation updated successfully." });
+  } catch (error: any) {
+    console.error("Error editing reservation:", error);
+
+    if (error.code === "ER_CON_COUNT_ERROR") {
+      console.error("Too many connections to the database.");
+    } else if (error.code === "ECONNREFUSED") {
+      console.error("Database connection was refused.");
+    } else if (error.code === "ETIMEDOUT") {
+      console.error("Connection to the database timed out.");
+    } else if (error.code === "ER_ACCESS_DENIED_ERROR") {
+      console.error("Access denied for the database user.");
     }
 
-    // Return the found reservation and restaurant data
-    return res.status(200).json({
-      reservation: reservation,
-      restaurant: restaurant,
-    });
+    if (error.code === "45000") {
+      res.status(400).json({ message: error.sqlMessage });
+    } else {
+      res.status(500).json({ message: "Server error", error: error.message });
+    }
+  } finally {
+    if (connection) connection.release();
+  }
+}
+
+// Delete a reservation
+
+export async function deleteReservation(
+  req: Request,
+  res: Response
+): Promise<void> {
+  const { reservationId } = req.params;
+
+  if (!reservationId) {
+    console.error("Missing reservation ID.");
+    res.status(400).json({ message: "Missing reservation ID." });
+    return;
+  }
+
+  let connection;
+
+  try {
+    console.log("Attempting to connect to the database...");
+    const pool = await connectDB();
+    connection = await pool.getConnection();
+    console.log("Database connection established.");
+
+    // Delete the reservation by ID
+    console.log(`Executing query to delete reservation ID: ${reservationId}`);
+    const [result]: [ResultSetHeader, any] = await connection.query(
+      `DELETE FROM Reservations WHERE reservationId = ?`,
+      [reservationId]
+    );
+
+    if (result.affectedRows === 0) {
+      console.log("No reservation found with the provided ID.");
+      res.status(404).json({ message: "Reservation not found." });
+      return;
+    }
+
+    console.log("Reservation deleted successfully.");
+    res.status(200).json({ message: "Reservation deleted successfully." });
   } catch (error: any) {
-    // Handle any errors that occur
-    console.error(error);
-    return res
-      .status(500)
-      .json({ message: "Server error", error: error.message });
+    console.error("Error deleting reservation:", error);
+
+    // Check if the error is related to MySQL connection issues
+    if (error.code === "ER_CON_COUNT_ERROR") {
+      console.error("Too many connections to the database.");
+    } else if (error.code === "ECONNREFUSED") {
+      console.error("Database connection was refused.");
+    } else if (error.code === "ETIMEDOUT") {
+      console.error("Connection to the database timed out.");
+    } else if (error.code === "ER_ACCESS_DENIED_ERROR") {
+      console.error("Access denied for the database user.");
+    }
+
+    res.status(500).json({ message: "Server error", error: error.message });
+  } finally {
+    if (connection) {
+      console.log("Releasing database connection.");
+      connection.release();
+    }
   }
 }

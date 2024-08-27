@@ -3,14 +3,19 @@ import {
   addReservation,
   deleteReservation,
   editReservation,
+  getReservationByRestaurantIdAndDate,
 } from "../controllers/Reservation.controller";
 
 export const reservationRoutes = Router();
 
-// Post
-reservationRoutes.patch("/add/:restaurantId", addReservation);
-reservationRoutes.delete("/:restaurantId/:reservationId", deleteReservation);
-reservationRoutes.patch(
-  "/:restaurantId/:oldTableId/:oldreservationId",
-  editReservation
-);
+// Route to add a new reservation
+reservationRoutes.post("/", addReservation);
+
+// Route to delete a reservation by its ID
+reservationRoutes.delete("/:reservationId", deleteReservation);
+
+// Route to edit a reservation (partial update)
+reservationRoutes.patch("/", editReservation);
+
+// Route to get reservations by restaurant ID and date
+reservationRoutes.get("/byRestaurant", getReservationByRestaurantIdAndDate);
