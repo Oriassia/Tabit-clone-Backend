@@ -89,7 +89,7 @@ export async function getAvailableTables(
   req: Request,
   res: Response
 ): Promise<void> {
-  const { lat, lng, date } = req.body;
+  const { lat, lng, date, partySize } = req.body;
 
   if (!lat || !lng || !date) {
     res.status(400).json({ message: "Missing latitude, longitude, or date." });
@@ -104,8 +104,8 @@ export async function getAvailableTables(
 
     // Call the stored procedure to get available tables nearby
     const [rows]: [RowDataPacket[], any] = await connection.query(
-      `CALL get_available_tables_nearby(?, ?, ?)`,
-      [lat, lng, date]
+      `CALL get_available_tables_nearby(?, ?, ?, ?)`,
+      [lat, lng, date, partySize]
     );
 
     if (!rows || rows.length === 0) {
