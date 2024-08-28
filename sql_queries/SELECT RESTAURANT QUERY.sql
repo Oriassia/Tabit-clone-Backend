@@ -1,1 +1,1 @@
-select * from Reservations
+SELECT * FROM Restaurants r INNER JOIN OpeningHours  where  r.restId=1 and o.restId=1
