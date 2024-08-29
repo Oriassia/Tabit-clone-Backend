@@ -3,6 +3,7 @@ import { restaurantsRoute } from "./routes/Resturant.route";
 import cors from "cors";
 
 import { reservationRoutes } from "./routes/Reservation.route";
+import { tablesRoute } from "./routes/Tables.route";
 
 const PORT = process.env.PORT || 3000;
 
@@ -16,6 +17,7 @@ async function main() {
   app.use(cors());
 
   // Routes
+  app.use("/api/tables", tablesRoute);
   app.use("/api/restaurants", restaurantsRoute);
   app.use("/api/reservations", reservationRoutes);
 

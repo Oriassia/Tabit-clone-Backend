@@ -1,7 +1,7 @@
 import { Router } from "express";
 import {
   getAllRestaurants,
-  getAvailableTables,
+  // getAvailableTables,
   getRestaurantById,
   getAvaliableTablesForNow,
   getPhotosByRestId,
@@ -10,7 +10,7 @@ import {
 export const restaurantsRoute = Router();
 
 // Public routes
-restaurantsRoute.post("/", getAvailableTables);
+// restaurantsRoute.post("/", getAvailableTables);
 restaurantsRoute.get("/", getAllRestaurants);
 restaurantsRoute.get("/photos/:id", getPhotosByRestId);
 // Get a restaurant by ID
