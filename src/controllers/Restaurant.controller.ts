@@ -135,10 +135,7 @@ export async function getRestaurantById(
     connection = await pool.getConnection();
 
     const [rows]: [RowDataPacket[], any] = await connection.query(
-      `SELECT * 
-        FROM Restaurants r 
-        INNER JOIN OpeningHours o ON r.restId = o.restId inner join RestaurantMenus M on r.restId = M.restId
-        WHERE r.restId = ?`,
+      "CALL getRestaurantById(?);",
       [id]
     );
 
