@@ -1,5 +1,5 @@
 import express, { Express } from "express";
-import { restaurantsRoute } from "./routes/Resturant.route";
+import { restaurantsRoute } from "./routes/Restaurant.route";
 import cors from "cors";
 
 import { reservationRoutes } from "./routes/Reservation.route";
