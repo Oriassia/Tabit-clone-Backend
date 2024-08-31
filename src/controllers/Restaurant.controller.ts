@@ -51,7 +51,50 @@ export async function getAllRestaurants(
     if (connection) connection.release();
   }
 }
+export async function getGiftIt(req: Request, res: Response): Promise<void> {
+  let connection;
+  const { q = null } = req.query;
 
+  try {
+    const pool = await connectDB();
+    connection = await pool.getConnection();
+
+    const [rows]: [RowDataPacket[], any] = await connection.query(
+      `CALL GetGiftIt(?)`,
+      [q]
+    );
+
+    if (!rows || rows.length === 0) {
+      res.status(404).json({ message: "No restaurants found." });
+      return;
+    }
+
+    res.status(200).json(rows);
+  } catch (error: any) {
+    console.error("Error fetching restaurants:", error);
+
+    switch (error.code) {
+      case "ER_CON_COUNT_ERROR":
+        console.error("Too many connections to the database.");
+        break;
+      case "ECONNREFUSED":
+        console.error("Database connection was refused.");
+        break;
+      case "ETIMEDOUT":
+        console.error("Connection to the database timed out.");
+        break;
+      case "ER_ACCESS_DENIED_ERROR":
+        console.error("Access denied for the database user.");
+        break;
+      default:
+        console.error("Unhandled database error.");
+    }
+
+    res.status(500).json({ message: "Server error", error: error.message });
+  } finally {
+    if (connection) connection.release();
+  }
+}
 export async function getPhotosByRestId(
   req: Request,
   res: Response
