@@ -3,18 +3,21 @@ import { connectDB } from "../config/db";
 import { RowDataPacket } from "mysql2/promise";
 
 // Fetch all restaurants
+
 export async function getAllRestaurants(
   req: Request,
   res: Response
 ): Promise<void> {
   let connection;
+  const { category = null, lat = null, lng = null, name = null } = req.body;
 
   try {
     const pool = await connectDB();
     connection = await pool.getConnection();
 
     const [rows]: [RowDataPacket[], any] = await connection.query(
-      `SELECT * FROM Restaurants`
+      `CALL GetAllRestaurants(?,?,?,?)`,
+      [category, lat, lng, name]
     );
 
     if (!rows || rows.length === 0) {
@@ -26,14 +29,21 @@ export async function getAllRestaurants(
   } catch (error: any) {
     console.error("Error fetching restaurants:", error);
 
-    if (error.code === "ER_CON_COUNT_ERROR") {
-      console.error("Too many connections to the database.");
-    } else if (error.code === "ECONNREFUSED") {
-      console.error("Database connection was refused.");
-    } else if (error.code === "ETIMEDOUT") {
-      console.error("Connection to the database timed out.");
-    } else if (error.code === "ER_ACCESS_DENIED_ERROR") {
-      console.error("Access denied for the database user.");
+    switch (error.code) {
+      case "ER_CON_COUNT_ERROR":
+        console.error("Too many connections to the database.");
+        break;
+      case "ECONNREFUSED":
+        console.error("Database connection was refused.");
+        break;
+      case "ETIMEDOUT":
+        console.error("Connection to the database timed out.");
+        break;
+      case "ER_ACCESS_DENIED_ERROR":
+        console.error("Access denied for the database user.");
+        break;
+      default:
+        console.error("Unhandled database error.");
     }
 
     res.status(500).json({ message: "Server error", error: error.message });
@@ -41,6 +51,7 @@ export async function getAllRestaurants(
     if (connection) connection.release();
   }
 }
+
 export async function getPhotosByRestId(
   req: Request,
   res: Response
