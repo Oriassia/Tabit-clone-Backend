@@ -25,7 +25,7 @@ export async function getAllRestaurants(
       return;
     }
 
-    res.status(200).json(rows);
+    res.status(200).json(rows[0]); //new
   } catch (error: any) {
     console.error("Error fetching restaurants:", error);
 
