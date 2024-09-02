@@ -117,7 +117,7 @@ export async function getAvailableTables(
       return;
     }
 
-    res.status(200).json(rows);
+    res.status(200).json(rows[0]);
   } catch (error: any) {
     console.error("Error fetching available tables:", error);
 
