@@ -27,7 +27,7 @@ export async function getAllAvaliableTablesByRest(
       res.status(404).json({ message: "No tables found." });
       return;
     }
-    res.status(200).json(rows);
+    res.status(200).json(rows[0]);
   } catch (error: any) {
     console.error("Error fetching available tables:", error);
 
