@@ -1,5 +1,6 @@
 import { Router } from "express";
 import {
+  getAllAvaliableTablesByRest,
   getAvailableTables,
   getTablePositionsForRest,
 } from "../controllers/Tables.controller";
@@ -7,4 +8,5 @@ import {
 export const tablesRoute = Router();
 
 tablesRoute.post("/", getAvailableTables);
+tablesRoute.get("/:restId", getAllAvaliableTablesByRest);
 tablesRoute.get("/position/:restId", getTablePositionsForRest);
