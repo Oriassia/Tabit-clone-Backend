@@ -3,6 +3,7 @@ import {
   addReservation,
   deleteReservation,
   editReservation,
+  getReservationById,
   getReservationByRestaurantIdAndDate,
 } from "../controllers/Reservation.controller";
 
@@ -19,3 +20,5 @@ reservationRoutes.patch("/", editReservation);
 
 // Route to get reservations by restaurant ID and date
 reservationRoutes.get("/byRestaurant", getReservationByRestaurantIdAndDate);
+
+reservationRoutes.get("/:reservationId", getReservationById);

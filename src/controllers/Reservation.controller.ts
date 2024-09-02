@@ -325,3 +325,36 @@ export async function deleteReservation(
     }
   }
 }
+
+export async function getReservationById(
+  req: Request,
+  res: Response
+): Promise<void> {
+  let connection;
+  const { reservationId } = req.params; // Get reservation ID from request parameters
+
+  try {
+    const pool = await connectDB(); // Connect to the database
+    connection = await pool.getConnection(); // Get a connection from the pool
+
+    // Execute the stored procedure
+    const [rows]: [RowDataPacket[], any] = await connection.query(
+      `CALL get_reservation_by_id(?)`,
+      [reservationId]
+    );
+
+    // Check if any result is returned
+    if (!rows || rows.length === 0 || rows[0].length === 0) {
+      res.status(404).json({ message: "Reservation not found." });
+      return;
+    }
+
+    // Return the fetched reservation data
+    res.status(200).json(rows[0][0]); // rows[0][0] because it's a stored procedure
+  } catch (error: any) {
+    console.error("Error fetching reservation:", error);
+    res.status(500).json({ message: "Server error", error: error.message });
+  } finally {
+    if (connection) connection.release(); // Release the connection back to the pool
+  }
+}
