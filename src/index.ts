@@ -4,6 +4,7 @@ import cors from "cors";
 
 import { reservationRoutes } from "./routes/Reservation.route";
 import { tablesRoute } from "./routes/Tables.route";
+import { giftCardRouter } from "./routes/Giftcards.route";
 
 const PORT = process.env.PORT || 3000;
 
@@ -20,6 +21,7 @@ async function main() {
   app.use("/api/tables", tablesRoute);
   app.use("/api/restaurants", restaurantsRoute);
   app.use("/api/reservations", reservationRoutes);
+  app.use("/api/giftcard", giftCardRouter);
 
   app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
