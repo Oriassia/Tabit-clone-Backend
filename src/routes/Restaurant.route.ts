@@ -6,6 +6,7 @@ import {
   getAvaliableTablesForNow,
   getPhotosByRestId,
   getGiftIt,
+  getRestaurantOpeningHours,
 } from "../controllers/Restaurant.controller";
 
 export const restaurantsRoute = Router();
@@ -19,3 +20,4 @@ restaurantsRoute.get("/photos/:id", getPhotosByRestId);
 restaurantsRoute.get("/now/:id", getAvaliableTablesForNow);
 restaurantsRoute.get("/giftIt", getGiftIt);
 restaurantsRoute.get("/:id", getRestaurantById);
+restaurantsRoute.get("/hour/:restId", getRestaurantOpeningHours);

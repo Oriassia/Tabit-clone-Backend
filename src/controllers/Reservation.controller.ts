@@ -20,6 +20,7 @@ export async function addReservation(
     notes,
     date,
   } = req.body;
+  console.log("adding reservation");
 
   if (
     !tableId ||
