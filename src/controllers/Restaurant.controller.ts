@@ -58,7 +58,7 @@ export async function getAllRestaurants(
   res: Response
 ): Promise<void> {
   let connection;
-  const { category = null, lat = null, lng = null, name = null } = req.body;
+  const { category = null, lat = null, lng = null, name = null } = req.query;
 
   try {
     const pool = await connectDB();
@@ -100,6 +100,7 @@ export async function getAllRestaurants(
     if (connection) connection.release();
   }
 }
+
 export async function getGiftIt(req: Request, res: Response): Promise<void> {
   let connection;
   const { q = null } = req.query;
