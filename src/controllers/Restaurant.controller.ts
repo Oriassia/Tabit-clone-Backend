@@ -58,7 +58,7 @@ export async function getAllRestaurants(
   res: Response
 ): Promise<void> {
   let connection;
-  const { category = null, lat = null, lng = null, name = null } = req.body;
+  const { category = null, lat = null, lng = null, name = null } = req.params;
 
   try {
     const pool = await connectDB();
