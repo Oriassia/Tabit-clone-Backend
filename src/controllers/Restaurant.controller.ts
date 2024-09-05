@@ -3,6 +3,55 @@ import { connectDB } from "../config/db";
 import { RowDataPacket } from "mysql2/promise";
 
 // Fetch all restaurants
+export async function getRestaurantOpeningHours(
+  req: Request,
+  res: Response
+): Promise<void> {
+  let connection;
+  const { restId } = req.params;
+
+  try {
+    const pool = await connectDB();
+    connection = await pool.getConnection();
+
+    const [rows]: [RowDataPacket[], any] = await connection.query(
+      `SELECT * FROM OpeningHours WHERE restId = ?`,
+      [restId]
+    );
+
+    if (!rows || rows.length === 0) {
+      res
+        .status(404)
+        .json({ message: "No opening hours found for this restaurant." });
+      return;
+    }
+
+    res.status(200).json(rows[0]); // Returns the first matching row
+  } catch (error: any) {
+    console.error("Error fetching opening hours:", error);
+
+    switch (error.code) {
+      case "ER_CON_COUNT_ERROR":
+        console.error("Too many connections to the database.");
+        break;
+      case "ECONNREFUSED":
+        console.error("Database connection was refused.");
+        break;
+      case "ETIMEDOUT":
+        console.error("Connection to the database timed out.");
+        break;
+      case "ER_ACCESS_DENIED_ERROR":
+        console.error("Access denied for the database user.");
+        break;
+      default:
+        console.error("Unhandled database error.");
+    }
+
+    res.status(500).json({ message: "Server error", error: error.message });
+  } finally {
+    if (connection) connection.release();
+  }
+}
 
 export async function getAllRestaurants(
   req: Request,
