@@ -7,6 +7,6 @@ import {
 
 export const tablesRoute = Router();
 
-tablesRoute.post("/", getAvailableTables);
+tablesRoute.get("/", getAvailableTables);
 tablesRoute.get("/:restId", getAllAvaliableTablesByRest);
 tablesRoute.get("/position/:restId", getTablePositionsForRest);
