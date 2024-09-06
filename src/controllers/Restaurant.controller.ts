@@ -64,7 +64,7 @@ export async function getAllRestaurants(
     lng = null,
     name = null,
     page = 1,
-  } = req.params;
+  } = req.query;
 
   try {
     const pool = await connectDB();
@@ -106,6 +106,7 @@ export async function getAllRestaurants(
     if (connection) connection.release();
   }
 }
+
 export async function getGiftIt(req: Request, res: Response): Promise<void> {
   let connection;
   const { q = null } = req.query;
