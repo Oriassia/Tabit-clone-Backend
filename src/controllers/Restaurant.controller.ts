@@ -64,7 +64,7 @@ export async function getAllRestaurants(
     lng = null,
     name = null,
     page = 1,
-  } = req.params;
+  } = req.query;
 
   try {
     const pool = await connectDB();
