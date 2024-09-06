@@ -58,15 +58,21 @@ export async function getAllRestaurants(
   res: Response
 ): Promise<void> {
   let connection;
-  const { category = null, lat = null, lng = null, name = null } = req.query;
+  const {
+    category = null,
+    lat = null,
+    lng = null,
+    name = null,
+    page = 1,
+  } = req.query;
 
   try {
     const pool = await connectDB();
     connection = await pool.getConnection();
 
     const [rows]: [RowDataPacket[], any] = await connection.query(
-      `CALL GetAllRestaurants(?,?,?,?)`,
-      [category, lat, lng, name]
+      `CALL GetAllRestaurants(?,?,?,?,?)`,
+      [category, lat, lng, name, page]
     );
 
     if (!rows || rows.length === 0) {
