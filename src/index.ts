@@ -15,8 +15,13 @@ async function main() {
   // await connectDB(); // Ensure the database connection is established
   // Middleware
   app.use(express.json());
-  app.use(cors());
-
+  app.use(
+    cors({
+      origin: ["*"], //Frontend link
+      methods: ["POST", "GET", "UPDATE", "DELETE"],
+      credentials: true,
+    })
+  );
   // Routes
   app.use("/api/tables", tablesRoute);
   app.use("/api/restaurants", restaurantsRoute);
