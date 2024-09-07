@@ -12,21 +12,6 @@ export const connectDB = async (): Promise<Pool> => {
     try {
       console.log("Initializing connection pool...");
 
-      // Ensure DB_SSL_CA_PATH is set
-      const caCertPath = process.env.DB_SSL_CA_PATH;
-      if (!caCertPath) {
-        console.error(
-          "CA certificate path is not defined in the environment variables."
-        );
-        throw new Error(
-          "CA certificate path is not defined in the environment variables."
-        );
-      }
-
-      // Ensure the file exists and can be read
-
-      const caCert = fs.readFileSync(path.resolve(caCertPath));
-
       console.log("Creating MySQL connection pool...");
       // Create a connection to the database using mysql2/promise
       pool = await createPool({
@@ -36,12 +21,12 @@ export const connectDB = async (): Promise<Pool> => {
         port: Number(process.env.DB_PORT),
         database: "defaultdb",
         waitForConnections: true,
-        connectionLimit: 100,
+        connectionLimit: 10, // Lower limit for serverless environments
         queueLimit: 0,
-        connectTimeout: 60000, // 60 seconds for connection timeout
+        connectTimeout: 60000,
         ssl: {
           rejectUnauthorized: true,
-          ca: caCert.toString(),
+          ca: process.env.DB_SSL_CA, // Use environment variable directly
         },
       });
     } catch (error: any) {
