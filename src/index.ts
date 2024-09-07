@@ -18,7 +18,7 @@ const app = express();
 app.use(express.json());
 app.use(
   cors({
-    origin: ["https://tabit-clone.vercel.app"], //Frontend link
+    origin: ["*"], //Frontend link
     methods: ["POST", "GET", "UPDATE", "DELETE"],
     credentials: true,
   })
