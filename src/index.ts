@@ -5,7 +5,9 @@ import cors from "cors";
 import { reservationRoutes } from "./routes/Reservation.route";
 import { tablesRoute } from "./routes/Tables.route";
 import { giftCardRouter } from "./routes/Giftcards.route";
+import { sendMail } from "./controllers/Giftcards.controller";
 import { connectDB } from "./config/db";
+
 
 const PORT = process.env.PORT || 3000;
 
