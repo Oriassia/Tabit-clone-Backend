@@ -23,6 +23,8 @@ async function main() {
   app.use("/api/reservations", reservationRoutes);
   app.use("/api/giftcard", giftCardRouter);
 
+  app.get("/", (req, res) => res.json("Express on Vercel"));
+
   app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
   });
