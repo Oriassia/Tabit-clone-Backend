@@ -120,6 +120,7 @@ export async function addReservation(
     res.status(201).json({
       message: "Reservation created successfully",
       reservationId: reservationId,
+      restaurant: restaurant,
     });
   } catch (error: any) {
     console.error("Error adding reservation:", error);
