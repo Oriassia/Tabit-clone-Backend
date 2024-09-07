@@ -1,27 +1,23 @@
 import express from "express";
 import { restaurantsRoute } from "./routes/Restaurant.route";
 import cors from "cors";
-
 import { reservationRoutes } from "./routes/Reservation.route";
 import { tablesRoute } from "./routes/Tables.route";
 import { giftCardRouter } from "./routes/Giftcards.route";
-import { sendMail } from "./controllers/Giftcards.controller";
 import { connectDB } from "./config/db";
 
-
 const PORT = process.env.PORT || 3000;
-
 const app = express();
 
-// Connect to database
-// connectDB(); // Ensure the database connection is established
+// Connect to the database
+connectDB(); // Ensure the database connection is established
 
 // Middleware
 app.use(express.json());
 app.use(
   cors({
-    origin: ["*"], //Frontend link
-    methods: ["POST", "GET", "UPDATE", "DELETE"],
+    origin: "http://localhost:5173", // Use your frontend link here
+    methods: ["POST", "GET", "PUT", "DELETE"], // Corrected methods
     credentials: true,
   })
 );
