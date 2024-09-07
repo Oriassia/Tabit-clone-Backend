@@ -12,7 +12,7 @@ const PORT = process.env.PORT || 3000;
 const app = express();
 
 // Connect to database
-connectDB(); // Ensure the database connection is established
+// connectDB(); // Ensure the database connection is established
 
 // Middleware
 app.use(express.json());

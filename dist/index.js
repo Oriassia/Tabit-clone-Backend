@@ -9,11 +9,10 @@ const cors_1 = __importDefault(require("cors"));
 const Reservation_route_1 = require("./routes/Reservation.route");
 const Tables_route_1 = require("./routes/Tables.route");
 const Giftcards_route_1 = require("./routes/Giftcards.route");
-const db_1 = require("./config/db");
 const PORT = process.env.PORT || 3000;
 const app = (0, express_1.default)();
 // Connect to database
-(0, db_1.connectDB)(); // Ensure the database connection is established
+// connectDB(); // Ensure the database connection is established
 // Middleware
 app.use(express_1.default.json());
 app.use((0, cors_1.default)({
