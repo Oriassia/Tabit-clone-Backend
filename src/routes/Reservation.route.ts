@@ -16,7 +16,7 @@ reservationRoutes.post("/", addReservation);
 reservationRoutes.delete("/:reservationId", deleteReservation);
 
 // Route to edit a reservation (partial update)
-reservationRoutes.patch("/", editReservation);
+reservationRoutes.put("/", editReservation);
 
 // Route to get reservations by restaurant ID and date
 reservationRoutes.get("/byRestaurant", getReservationByRestaurantIdAndDate);

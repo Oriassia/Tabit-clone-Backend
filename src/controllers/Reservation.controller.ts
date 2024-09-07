@@ -3,7 +3,7 @@ import { connectDB } from "../config/db";
 import { RowDataPacket, ResultSetHeader } from "mysql2/promise";
 import { IReservation, IRestaurant } from "../types/types";
 import { Twilio } from "twilio";
-
+import moment from "moment-timezone"; // Import moment-timezone for timezone handling
 // Add a reservation
 export async function addReservation(
   req: Request,
@@ -222,14 +222,12 @@ export async function editReservation(
   req: Request,
   res: Response
 ): Promise<void> {
-  const { oldReservation, newDate, newPosition, newPartySize } = req.body;
+  const { reservationId, tableId, newPartySize, newDate } = req.body;
 
-  if (!oldReservation || !newDate || !newPosition || !newPartySize) {
+  if (!reservationId || !newDate || !tableId || !newPartySize) {
     res.status(400).json({ message: "Missing required fields." });
     return;
   }
-
-  const { reservationId, restId } = oldReservation;
 
   let connection;
 
@@ -239,8 +237,8 @@ export async function editReservation(
 
     // Call the stored procedure to find an available table and update the reservation
     const [result]: [ResultSetHeader, any] = await connection.query(
-      `CALL edit_reservation(?, ?, ?, ?, ?)`,
-      [reservationId, restId, newDate, newPosition, newPartySize]
+      `CALL edit_reservation(?, ?, ?, ?)`,
+      [reservationId, tableId, newPartySize, newDate]
     );
 
     res.status(200).json({ message: "Reservation updated successfully." });
@@ -333,7 +331,6 @@ export async function getReservationById(
 ): Promise<void> {
   let connection;
   const { reservationId } = req.params; // Get reservation ID from request parameters
-
   try {
     const pool = await connectDB(); // Connect to the database
     connection = await pool.getConnection(); // Get a connection from the pool
@@ -350,8 +347,17 @@ export async function getReservationById(
       return;
     }
 
+    const reservation = rows[0][0]; // Get the first row
+
+    // Convert the date to the local timezone
+    if (reservation.date) {
+      reservation.date = moment(reservation.date)
+        .tz("Asia/Jerusalem") // Convert to Israel timezone
+        .format("YYYY-MM-DD HH:mm:ss"); // Format as MySQL DATETIME
+    }
+
     // Return the fetched reservation data
-    res.status(200).json(rows[0][0]); // rows[0][0] because it's a stored procedure
+    res.status(200).json(reservation); // Return the reservation object
   } catch (error: any) {
     console.error("Error fetching reservation:", error);
     res.status(500).json({ message: "Server error", error: error.message });
