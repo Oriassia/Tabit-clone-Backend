@@ -14,7 +14,6 @@ yarn-error.log*
 Thumbs.db
 
 # Ignore build folders
-dist/
 build/
 
 cert/
