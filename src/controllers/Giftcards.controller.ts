@@ -204,7 +204,7 @@ export async function createGiftcard(
         <p>Hi there,</p>
         <p>Great news! 🎉 Your friend, <strong>${senderName}</strong>, has just sent you a gift card worth <strong>${balance} NIS</strong> to enjoy at <strong>${restaurantName}</strong>!</p>
         <p>Whether it's a special occasion or just a treat, we hope this gift brings a smile to your face. Simply present this email at <strong>${restaurantName}</strong> to redeem your gift card and savor a delightful dining experience.</p>
-        <a href="#" class="cta-button">View Gift Card</a>
+        <a href="http://localhost:5173/gift-cards/card-details?cardId=${result.insertId}" class="cta-button">View Gift Card</a>
       </div>
       <div class="footer">
         <p>Happy dining!</p>
@@ -284,7 +284,7 @@ export async function createGiftcard(
         <p>Hi there,</p>
         <p>Congratulations! 🎉 You’ve just purchased a gift card worth <strong>${balance} NIS</strong> to enjoy at <strong>${restaurantName}</strong>!</p>
         <p>Get ready for a delightful dining experience. Simply present this email at <strong>${restaurantName}</strong> to redeem your gift card and enjoy your meal!</p>
-        <a href="https://tabit-clone.vercel.app/" class="cta-button">View Gift Card</a>
+        <a href="http://localhost:5173/gift-cards/card-details?cardId=${result.insertId}" class="cta-button">View Gift Card</a>
       </div>
       <div class="footer">
         <p>Happy dining!</p>
