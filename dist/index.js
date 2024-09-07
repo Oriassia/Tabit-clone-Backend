@@ -16,12 +16,17 @@ async function main() {
     // await connectDB(); // Ensure the database connection is established
     // Middleware
     app.use(express_1.default.json());
-    app.use((0, cors_1.default)());
+    app.use((0, cors_1.default)({
+        origin: ["*"], //Frontend link
+        methods: ["POST", "GET", "UPDATE", "DELETE"],
+        credentials: true,
+    }));
     // Routes
     app.use("/api/tables", Tables_route_1.tablesRoute);
     app.use("/api/restaurants", Restaurant_route_1.restaurantsRoute);
     app.use("/api/reservations", Reservation_route_1.reservationRoutes);
     app.use("/api/giftcard", Giftcards_route_1.giftCardRouter);
+    app.get("/", (req, res) => res.json("Express on Vercel"));
     app.listen(PORT, () => {
         console.log(`Server running on port ${PORT}`);
     });

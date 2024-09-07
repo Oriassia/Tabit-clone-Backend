@@ -22,6 +22,7 @@ async function main() {
       credentials: true,
     })
   );
+
   // Routes
   app.use("/api/tables", tablesRoute);
   app.use("/api/restaurants", restaurantsRoute);
