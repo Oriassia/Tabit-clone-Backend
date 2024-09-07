@@ -5,13 +5,15 @@ import cors from "cors";
 import { reservationRoutes } from "./routes/Reservation.route";
 import { tablesRoute } from "./routes/Tables.route";
 import { giftCardRouter } from "./routes/Giftcards.route";
+import { connectDB } from "./config/db";
 
 const PORT = process.env.PORT || 3000;
 
 const app = express();
 
 // Connect to database
-// await connectDB(); // Ensure the database connection is established
+connectDB(); // Ensure the database connection is established
+
 // Middleware
 app.use(express.json());
 app.use(
