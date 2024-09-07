@@ -17,7 +17,7 @@ async function main() {
     // Middleware
     app.use(express_1.default.json());
     app.use((0, cors_1.default)({
-        origin: ["*"], //Frontend link
+        origin: ["https://tabit-clone.vercel.app"], //Frontend link
         methods: ["POST", "GET", "UPDATE", "DELETE"],
         credentials: true,
     }));
