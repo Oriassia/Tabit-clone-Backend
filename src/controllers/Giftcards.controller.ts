@@ -301,7 +301,6 @@ export async function createGiftcard(
       subject: "Tabit Giftcard",
       html: emailHtmlContent,
     });
-
     res.status(201).json({
       message: "Gift card created successfully",
       cardId: result.insertId,
