@@ -10,6 +10,48 @@ interface MailOptions {
   html?: string;
 }
 
+import { Twilio } from "twilio";
+import { send } from "process";
+
+// Define the SMSOptions interface for type safety
+interface IGiftCard {
+  cardId: string;
+  balance: number;
+  restaurant_name: string;
+  senderName?: string;
+  phoneNumber: string;
+}
+
+// Define the sendSMSgiftCard function with type annotations
+export function sendSMSgiftCard(giftCard: IGiftCard): void {
+  const { TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_NUMBER } = process.env;
+  if (!TWILIO_ACCOUNT_SID || !TWILIO_AUTH_TOKEN || !TWILIO_NUMBER) {
+    console.error("Twilio credentials are missing.");
+    throw new Error("Twilio credentials are not properly configured.");
+  }
+
+  const client = new Twilio(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN);
+
+  // Generate the SMS content based on whether senderName is provided or not
+  const smsContent = giftCard.senderName
+    ? `Hi there, great news! 🎉 Your friend, ${giftCard.senderName}, has just sent you a gift card worth ${giftCard.balance} NIS to enjoy at ${giftCard.restaurant_name}! 
+    Simply present this message at ${giftCard.restaurant_name} to redeem your gift card and savor a delightful dining experience.
+    View your gift card details here: https://tabit-clone.vercel.app/gift-cards/card-details?cardId=${giftCard.cardId}`
+    : `Hi there, congratulations! 🎉 You’ve just purchased a gift card worth ${giftCard.balance} NIS to enjoy at ${giftCard.restaurant_name}!
+    Get ready for a delightful dining experience. Simply present this message at ${giftCard.restaurant_name} to redeem your gift card and enjoy your meal!
+    View your gift card details here: https://tabit-clone.vercel.app/gift-cards/card-details?cardId=${giftCard.cardId}`;
+
+  // Send the SMS using Twilio
+  client.messages
+    .create({
+      body: smsContent,
+      to: giftCard.phoneNumber,
+      from: TWILIO_NUMBER,
+    })
+    .then((message) => console.log(`Message sent: ${message.sid}`))
+    .catch((error) => console.error(`Error sending message: ${error.message}`));
+}
+
 export async function sendMail({
   to,
   subject,
@@ -105,7 +147,7 @@ export async function createGiftcard(
     email,
     balance,
     senderName,
-    restaurantName,
+    restaurantName = "The Restaurant",
   } = req.body;
 
   // Validate required fields
@@ -128,14 +170,15 @@ export async function createGiftcard(
     connection = await pool.getConnection();
 
     // Call the stored procedure directly to create a new gift card
-    const [result]: [OkPacket, any] = await connection.query(
+    const [rows]: [any[], any] = await connection.query(
       `CALL InsertGiftCard(?, ?, ?, ?, ?, ?, ?)`,
       [restId, firstName, lastName, phoneNumber, email, balance, senderName]
     );
-
-    let emailHtmlContent: string = "";
-    if (senderName) {
-      emailHtmlContent = `
+    const insertedId = rows[0]?.[0]?.insertedId;
+    if (email) {
+      let emailHtmlContent: string = "";
+      if (senderName) {
+        emailHtmlContent = `
   <!DOCTYPE html>
   <html lang="en">
   <head>
@@ -204,7 +247,7 @@ export async function createGiftcard(
         <p>Hi there,</p>
         <p>Great news! 🎉 Your friend, <strong>${senderName}</strong>, has just sent you a gift card worth <strong>${balance} NIS</strong> to enjoy at <strong>${restaurantName}</strong>!</p>
         <p>Whether it's a special occasion or just a treat, we hope this gift brings a smile to your face. Simply present this email at <strong>${restaurantName}</strong> to redeem your gift card and savor a delightful dining experience.</p>
-        <a href="http://localhost:5173/gift-cards/card-details?cardId=${result.insertId}" class="cta-button">View Gift Card</a>
+        <a href="https://tabit-clone.vercel.app/gift-cards/card-details?cardId=${insertedId}" class="cta-button">View Gift Card</a>
       </div>
       <div class="footer">
         <p>Happy dining!</p>
@@ -214,8 +257,8 @@ export async function createGiftcard(
   </body>
   </html>
   `;
-    } else {
-      emailHtmlContent = `
+      } else {
+        emailHtmlContent = `
   <!DOCTYPE html>
   <html lang="en">
   <head>
@@ -284,7 +327,7 @@ export async function createGiftcard(
         <p>Hi there,</p>
         <p>Congratulations! 🎉 You’ve just purchased a gift card worth <strong>${balance} NIS</strong> to enjoy at <strong>${restaurantName}</strong>!</p>
         <p>Get ready for a delightful dining experience. Simply present this email at <strong>${restaurantName}</strong> to redeem your gift card and enjoy your meal!</p>
-        <a href="http://localhost:5173/gift-cards/card-details?cardId=${result.insertId}" class="cta-button">View Gift Card</a>
+        <a href="https://tabit-clone.vercel.app/gift-cards/card-details?cardId=${insertedId}" class="cta-button">View Gift Card</a>
       </div>
       <div class="footer">
         <p>Happy dining!</p>
@@ -294,17 +337,26 @@ export async function createGiftcard(
   </body>
   </html>
   `;
+      }
+      sendMail({
+        to: email,
+        subject: "Tabit Giftcard",
+        html: emailHtmlContent,
+      });
     }
-
-    sendMail({
-      to: email,
-      subject: "Tabit Giftcard",
-      html: emailHtmlContent,
-    });
-
+    if (phoneNumber) {
+      const giftcard: IGiftCard = {
+        cardId: insertedId,
+        phoneNumber: phoneNumber,
+        balance: balance,
+        restaurant_name: restaurantName,
+        senderName,
+      };
+      sendSMSgiftCard(giftcard);
+    }
     res.status(201).json({
       message: "Gift card created successfully",
-      cardId: result.insertId,
+      cardId: insertedId,
     });
   } catch (error: any) {
     console.error("Error creating gift card:", error);
