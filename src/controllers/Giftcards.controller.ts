@@ -147,7 +147,7 @@ export async function createGiftcard(
     email,
     balance,
     senderName,
-    restaurantName,
+    restaurantName = "The Restaurant",
   } = req.body;
 
   // Validate required fields
@@ -170,11 +170,11 @@ export async function createGiftcard(
     connection = await pool.getConnection();
 
     // Call the stored procedure directly to create a new gift card
-    const [result]: [OkPacket, any] = await connection.query(
+    const [rows]: [any[], any] = await connection.query(
       `CALL InsertGiftCard(?, ?, ?, ?, ?, ?, ?)`,
       [restId, firstName, lastName, phoneNumber, email, balance, senderName]
     );
-
+    const insertedId = rows[0]?.[0]?.insertedId;
     if (email) {
       let emailHtmlContent: string = "";
       if (senderName) {
@@ -247,7 +247,7 @@ export async function createGiftcard(
         <p>Hi there,</p>
         <p>Great news! 🎉 Your friend, <strong>${senderName}</strong>, has just sent you a gift card worth <strong>${balance} NIS</strong> to enjoy at <strong>${restaurantName}</strong>!</p>
         <p>Whether it's a special occasion or just a treat, we hope this gift brings a smile to your face. Simply present this email at <strong>${restaurantName}</strong> to redeem your gift card and savor a delightful dining experience.</p>
-        <a href="http://localhost:5173/gift-cards/card-details?cardId=${result.insertId}" class="cta-button">View Gift Card</a>
+        <a href="https://tabit-clone.vercel.app/gift-cards/card-details?cardId=${insertedId}" class="cta-button">View Gift Card</a>
       </div>
       <div class="footer">
         <p>Happy dining!</p>
@@ -327,7 +327,7 @@ export async function createGiftcard(
         <p>Hi there,</p>
         <p>Congratulations! 🎉 You’ve just purchased a gift card worth <strong>${balance} NIS</strong> to enjoy at <strong>${restaurantName}</strong>!</p>
         <p>Get ready for a delightful dining experience. Simply present this email at <strong>${restaurantName}</strong> to redeem your gift card and enjoy your meal!</p>
-        <a href="http://localhost:5173/gift-cards/card-details?cardId=${result.insertId}" class="cta-button">View Gift Card</a>
+        <a href="https://tabit-clone.vercel.app/gift-cards/card-details?cardId=${insertedId}" class="cta-button">View Gift Card</a>
       </div>
       <div class="footer">
         <p>Happy dining!</p>
@@ -346,7 +346,7 @@ export async function createGiftcard(
     }
     if (phoneNumber) {
       const giftcard: IGiftCard = {
-        cardId: result.insertId.toString(),
+        cardId: insertedId,
         phoneNumber: phoneNumber,
         balance: balance,
         restaurant_name: restaurantName,
@@ -356,7 +356,7 @@ export async function createGiftcard(
     }
     res.status(201).json({
       message: "Gift card created successfully",
-      cardId: result.insertId,
+      cardId: insertedId,
     });
   } catch (error: any) {
     console.error("Error creating gift card:", error);
