@@ -10,6 +10,48 @@ interface MailOptions {
   html?: string;
 }
 
+import { Twilio } from "twilio";
+import { send } from "process";
+
+// Define the SMSOptions interface for type safety
+interface IGiftCard {
+  cardId: string;
+  balance: number;
+  restaurant_name: string;
+  senderName?: string;
+  phoneNumber: string;
+}
+
+// Define the sendSMSgiftCard function with type annotations
+export function sendSMSgiftCard(giftCard: IGiftCard): void {
+  const { TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_NUMBER } = process.env;
+  if (!TWILIO_ACCOUNT_SID || !TWILIO_AUTH_TOKEN || !TWILIO_NUMBER) {
+    console.error("Twilio credentials are missing.");
+    throw new Error("Twilio credentials are not properly configured.");
+  }
+
+  const client = new Twilio(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN);
+
+  // Generate the SMS content based on whether senderName is provided or not
+  const smsContent = giftCard.senderName
+    ? `Hi there, great news! 🎉 Your friend, ${giftCard.senderName}, has just sent you a gift card worth ${giftCard.balance} NIS to enjoy at ${giftCard.restaurant_name}! 
+    Simply present this message at ${giftCard.restaurant_name} to redeem your gift card and savor a delightful dining experience.
+    View your gift card details here: https://tabit-clone.vercel.app/gift-cards/card-details?cardId=${giftCard.cardId}`
+    : `Hi there, congratulations! 🎉 You’ve just purchased a gift card worth ${giftCard.balance} NIS to enjoy at ${giftCard.restaurant_name}!
+    Get ready for a delightful dining experience. Simply present this message at ${giftCard.restaurant_name} to redeem your gift card and enjoy your meal!
+    View your gift card details here: https://tabit-clone.vercel.app/gift-cards/card-details?cardId=${giftCard.cardId}`;
+
+  // Send the SMS using Twilio
+  client.messages
+    .create({
+      body: smsContent,
+      to: giftCard.phoneNumber,
+      from: TWILIO_NUMBER,
+    })
+    .then((message) => console.log(`Message sent: ${message.sid}`))
+    .catch((error) => console.error(`Error sending message: ${error.message}`));
+}
+
 export async function sendMail({
   to,
   subject,
@@ -133,9 +175,10 @@ export async function createGiftcard(
       [restId, firstName, lastName, phoneNumber, email, balance, senderName]
     );
 
-    let emailHtmlContent: string = "";
-    if (senderName) {
-      emailHtmlContent = `
+    if (email) {
+      let emailHtmlContent: string = "";
+      if (senderName) {
+        emailHtmlContent = `
   <!DOCTYPE html>
   <html lang="en">
   <head>
@@ -214,8 +257,8 @@ export async function createGiftcard(
   </body>
   </html>
   `;
-    } else {
-      emailHtmlContent = `
+      } else {
+        emailHtmlContent = `
   <!DOCTYPE html>
   <html lang="en">
   <head>
@@ -294,13 +337,23 @@ export async function createGiftcard(
   </body>
   </html>
   `;
+      }
+      sendMail({
+        to: email,
+        subject: "Tabit Giftcard",
+        html: emailHtmlContent,
+      });
     }
-
-    sendMail({
-      to: email,
-      subject: "Tabit Giftcard",
-      html: emailHtmlContent,
-    });
+    if (phoneNumber) {
+      const giftcard: IGiftCard = {
+        cardId: result.insertId.toString(),
+        phoneNumber: phoneNumber,
+        balance: balance,
+        restaurant_name: restaurantName,
+        senderName,
+      };
+      sendSMSgiftCard(giftcard);
+    }
     res.status(201).json({
       message: "Gift card created successfully",
       cardId: result.insertId,
