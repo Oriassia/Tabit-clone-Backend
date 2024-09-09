@@ -17,7 +17,7 @@ const app = (0, express_1.default)();
 // Middleware
 app.use(express_1.default.json());
 app.use((0, cors_1.default)({
-    origin: ["*"], // Use your frontend link here
+    origin: ["https://tabit-clone.vercel.app"], // Use your frontend link here
     methods: ["POST", "GET", "PUT", "DELETE"], // Corrected methods
     credentials: true,
 }));
@@ -30,4 +30,3 @@ app.get("/", (req, res) => res.json("Express on Vercel"));
 app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
 });
-// Push Testtttt
