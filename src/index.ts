@@ -12,15 +12,18 @@ const app = express();
 // Connect to the database
 connectDB(); // Ensure the database connection is established
 
+const corsOptions = {
+  origin:
+    process.env.NODE_ENV === "development"
+      ? process.env.DEVELOPMENT_ORIGIN
+      : process.env.CORS_ORIGIN,
+  methods: ["POST", "GET", "PUT", "DELETE"],
+  credentials: true,
+};
+
 // Middleware
 app.use(express.json());
-app.use(
-  cors({
-    origin: ["https://tabit-clone.vercel.app"], // Use your frontend link here
-    methods: ["POST", "GET", "PUT", "DELETE"], // Corrected methods
-    credentials: true,
-  })
-);
+app.use(cors(corsOptions));
 
 // Routes
 app.use("/api/tables", tablesRoute);
