@@ -14,13 +14,16 @@ const PORT = process.env.PORT || 3000;
 const app = (0, express_1.default)();
 // Connect to the database
 (0, db_1.connectDB)(); // Ensure the database connection is established
+const corsOptions = {
+    origin: process.env.NODE_ENV === "development"
+        ? process.env.DEVELOPMENT_ORIGIN
+        : process.env.CORS_ORIGIN,
+    methods: ["POST", "GET", "PUT", "DELETE"],
+    credentials: true,
+};
 // Middleware
 app.use(express_1.default.json());
-app.use((0, cors_1.default)({
-    origin: ["https://tabit-clone.vercel.app"], // Use your frontend link here
-    methods: ["POST", "GET", "PUT", "DELETE"], // Corrected methods
-    credentials: true,
-}));
+app.use((0, cors_1.default)(corsOptions));
 // Routes
 app.use("/api/tables", Tables_route_1.tablesRoute);
 app.use("/api/restaurants", Restaurant_route_1.restaurantsRoute);
