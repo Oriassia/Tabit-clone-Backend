@@ -33,6 +33,11 @@ app.use("/api/giftcard", giftCardRouter);
 
 app.get("/", (req, res) => res.json("Express on Vercel"));
 
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
+// Only listen on a port when running locally
+if (process.env.NODE_ENV !== "production") {
+  app.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
+  });
+}
+
+export default app;
