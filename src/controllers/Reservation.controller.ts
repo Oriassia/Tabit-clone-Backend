@@ -5,6 +5,27 @@ import { IReservation, IRestaurant } from "../types/types";
 import { Twilio } from "twilio";
 import moment from "moment-timezone"; // Import moment-timezone for timezone handling
 // Add a reservation
+export const convertISOToSQLDateTime = (isoString: string) => {
+  if (typeof isoString === "string" && isoString.endsWith("Z")) {
+    // Parse the ISO string to a Date object in UTC
+    const date = new Date(isoString);
+
+    // Extract components in UTC
+    const year = date.getUTCFullYear();
+    const month = String(date.getUTCMonth() + 1).padStart(2, "0");
+    const day = String(date.getUTCDate()).padStart(2, "0");
+    const hours = String(date.getUTCHours()).padStart(2, "0");
+    const minutes = String(date.getUTCMinutes()).padStart(2, "0");
+    const seconds = String(date.getUTCSeconds()).padStart(2, "0");
+
+    // Format to 'YYYY-MM-DD HH:MM:SS'
+    return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+  } else {
+    console.error("Invalid ISO format:", isoString);
+    return null; // Return null if the format is invalid
+  }
+};
+
 export async function addReservation(
   req: Request,
   res: Response
@@ -56,13 +77,20 @@ export async function addReservation(
     endTime.setMinutes(endTime.getMinutes() + 30);
 
     // Check if there's any overlapping reservation on this table
+    console.log(startTime);
+
     const [existingReservations]: [RowDataPacket[], any] =
       await connection.query(
         `SELECT * FROM Reservations 
        WHERE tableId = ? 
        AND restId = ?
        AND (date > ? AND date < ?)`,
-        [tableId, restId, startTime, endTime]
+        [
+          tableId,
+          restId,
+          convertISOToSQLDateTime(startTime.toISOString()),
+          convertISOToSQLDateTime(endTime.toISOString()),
+        ]
       );
 
     if (existingReservations.length > 0) {
