@@ -25,12 +25,29 @@ export const convertISOToSQLDateTime = (isoString: string) => {
     return null; // Return null if the format is invalid
   }
 };
+export const parseCustomDateTime = (dateTimeString: string) => {
+  // Check if the string matches the expected format
+  if (
+    typeof dateTimeString === "string" &&
+    /^\d{2}-\d{2}-\d{4}T\d{2}:\d{2}$/.test(dateTimeString)
+  ) {
+    const [datePart, timePart] = dateTimeString.split("T");
+    const [day, month, year] = datePart.split("-").map(Number);
+    const [hours, minutes] = timePart.split(":").map(Number);
+
+    // Create a new Date object with the parsed values
+    return new Date(year, month - 1, day, hours, minutes);
+  } else {
+    console.error("Invalid date format:", dateTimeString);
+    return null; // Return null if the format is invalid
+  }
+};
 
 export async function addReservation(
   req: Request,
   res: Response
 ): Promise<void> {
-  const {
+  let {
     tableId,
     restId,
     partySize,
@@ -65,6 +82,10 @@ export async function addReservation(
     connection = await pool.getConnection();
 
     // Convert the date string into a Date object
+    console.log(typeof date);
+    if (date.indexOf("-") != -1) {
+      date = parseCustomDateTime(date);
+    }
     const reservationDate = new Date(date);
     const startTime = new Date(reservationDate);
     const endTime = new Date(reservationDate);
@@ -77,7 +98,7 @@ export async function addReservation(
     endTime.setMinutes(endTime.getMinutes() + 30);
 
     // Check if there's any overlapping reservation on this table
-    console.log(startTime);
+    console.log(startTime, endTime);
 
     const [existingReservations]: [RowDataPacket[], any] =
       await connection.query(
