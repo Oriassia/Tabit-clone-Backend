@@ -3,6 +3,7 @@ import { connectDB } from "../config/db";
 import { RowDataPacket, ResultSetHeader } from "mysql2/promise";
 import { IReservation, IRestaurant } from "../types/types";
 import { Twilio } from "twilio";
+import nodemailer from "nodemailer";
 import moment from "moment-timezone"; // Import moment-timezone for timezone handling
 // Add a reservation
 export const convertISOToSQLDateTime = (isoString: string) => {
@@ -42,6 +43,120 @@ export const parseCustomDateTime = (dateTimeString: string) => {
     return null; // Return null if the format is invalid
   }
 };
+
+export async function sendReservationEmail(
+  reservation: IReservation,
+  restaurant: IRestaurant
+): Promise<void> {
+  const { EMAIL, EMAIL_PASSWORD } = process.env;
+
+  if (!EMAIL || !EMAIL_PASSWORD) {
+    console.error("Email credentials are missing.");
+    throw new Error("Email credentials are not properly configured.");
+  }
+
+  try {
+    // Create a transporter using SMTP settings
+    const transporter = nodemailer.createTransport({
+      service: "gmail",
+      auth: {
+        user: EMAIL,
+        pass: EMAIL_PASSWORD,
+      },
+    });
+
+    // Define the HTML content with styling for a reservation approval
+    const htmlContent = `
+      <html>
+      <head>
+        <style>
+          body {
+            background-color: #212121;
+            color: #ffffff;
+            font-family: 'BetonEF', Arial, sans-serif;
+            padding: 20px;
+          }
+          .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: #333333;
+            padding: 20px;
+            border-radius: 8px;
+          }
+          .header {
+            text-align: center;
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 20px;
+          }
+          .greeting {
+            font-size: 18px;
+            margin-bottom: 10px;
+          }
+          .message {
+            font-size: 16px;
+            line-height: 1.6;
+            margin-bottom: 20px;
+          }
+          .details {
+            font-size: 16px;
+            line-height: 1.6;
+            margin-bottom: 20px;
+          }
+          .button {
+            display: inline-block;
+            padding: 10px 20px;
+            background-color: #0ca3a6;
+            color: #ffffff;
+            text-decoration: none;
+            border-radius: 5px;
+            font-weight: bold;
+            text-align: center;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">Reservation Confirmation</div>
+          <div class="greeting">Hi ${reservation.firstName},</div>
+          <div class="message">
+            We're excited to confirm your reservation at <strong>${
+              restaurant.name
+            }</strong>! Here are your reservation details:
+          </div>
+          <div class="details">
+            <p><strong>Date:</strong> ${reservation.date}</p>
+            <p><strong>Party Size:</strong> ${reservation.partySize}</p>
+            <p><strong>Table ID:</strong> ${reservation.tableId}</p>
+            <p><strong>Notes:</strong> ${reservation.notes || "None"}</p>
+          </div>
+          <p>Your table will be held for 15 minutes after the reserved time. Please let us know if there are any changes.</p>
+          <div style="text-align: center;">
+            <a href="https://localhost:5173/${
+              reservation.reservationId
+            }" class="button">View Reservation</a>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+
+    // Define email options
+    const mailOptions: nodemailer.SendMailOptions = {
+      from: EMAIL,
+      to: reservation.email,
+      subject: `Your Reservation at ${restaurant.name} - Confirmation`,
+      html: htmlContent,
+    };
+
+    // Send the email
+    const info = await transporter.sendMail(mailOptions);
+    console.log("Email sent: " + info.response);
+  } catch (error: any) {
+    console.error("Error sending reservation email:", error);
+    throw new Error(`Failed to send reservation email: ${error.message}`);
+  }
+}
 
 export async function addReservation(
   req: Request,
@@ -165,7 +280,9 @@ export async function addReservation(
       date: reservationDate,
       notes,
     };
+    sendReservationEmail(reservation, restaurant);
     // sendSMS(reservation, restaurant);
+
     res.status(201).json({
       message: "Reservation created successfully",
       reservationId: reservationId,
@@ -398,13 +515,16 @@ export async function getReservationById(
     }
 
     const reservation = rows[0][0]; // Get the first row
+    console.log(reservation.date);
 
     // Convert the date to the local timezone
     if (reservation.date) {
-      reservation.date = moment(reservation.date)
+      reservation.date = moment(reservation.date, "DD-MM-YYYYTHH:mm")
         .tz("Asia/Jerusalem") // Convert to Israel timezone
         .format("YYYY-MM-DD HH:mm:ss"); // Format as MySQL DATETIME
     }
+
+    console.log(reservation);
 
     // Return the fetched reservation data
     res.status(200).json(reservation); // Return the reservation object
