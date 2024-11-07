@@ -67,79 +67,84 @@ export async function sendReservationEmail(
 
     // Define the HTML content with styling for a reservation approval
     const htmlContent = `
-      <html>
-      <head>
-        <style>
-          body {
-            background-color: #212121;
-            color: #ffffff;
-            font-family: 'BetonEF', Arial, sans-serif;
-            padding: 20px;
-          }
-          .container {
-            max-width: 600px;
-            margin: 0 auto;
-            background-color: #333333;
-            padding: 20px;
-            border-radius: 8px;
-          }
-          .header {
-            text-align: center;
-            font-size: 24px;
-            font-weight: bold;
-            margin-bottom: 20px;
-          }
-          .greeting {
-            font-size: 18px;
-            margin-bottom: 10px;
-          }
-          .message {
-            font-size: 16px;
-            line-height: 1.6;
-            margin-bottom: 20px;
-          }
-          .details {
-            font-size: 16px;
-            line-height: 1.6;
-            margin-bottom: 20px;
-          }
-          .button {
-            display: inline-block;
-            padding: 10px 20px;
-            background-color: #0ca3a6;
-            color: #ffffff;
-            text-decoration: none;
-            border-radius: 5px;
-            font-weight: bold;
-            text-align: center;
-          }
-        </style>
-      </head>
-      <body>
-        <div class="container">
-          <div class="header">Reservation Confirmation</div>
-          <div class="greeting">Hi ${reservation.firstName},</div>
-          <div class="message">
-            We're excited to confirm your reservation at <strong>${
-              restaurant.name
-            }</strong>! Here are your reservation details:
-          </div>
-          <div class="details">
-            <p><strong>Date:</strong> ${reservation.date}</p>
-            <p><strong>Party Size:</strong> ${reservation.partySize}</p>
-            <p><strong>Table ID:</strong> ${reservation.tableId}</p>
-            <p><strong>Notes:</strong> ${reservation.notes || "None"}</p>
-          </div>
-          <p>Your table will be held for 15 minutes after the reserved time. Please let us know if there are any changes.</p>
-          <div style="text-align: center;">
-            <a href="https://localhost:5173/${
-              reservation.reservationId
-            }" class="button">View Reservation</a>
-          </div>
+    <html>
+    <head>
+      <style>
+        body {
+          background-color: #212121;
+          color: #ffffff;
+          font-family: 'BetonEF', Arial, sans-serif;
+          padding: 20px;
+        }
+        .container {
+          max-width: 600px;
+          margin: 0 auto;
+          background-color: #333333;
+          padding: 20px;
+          border-radius: 8px;
+          color: #ffffff;
+        }
+        .header {
+          text-align: center;
+          font-size: 24px;
+          font-weight: bold;
+          margin-bottom: 20px;
+          color: #ffffff;
+        }
+        .greeting {
+          font-size: 18px;
+          margin-bottom: 10px;
+          color: #ffffff;
+        }
+        .message {
+          font-size: 16px;
+          line-height: 1.6;
+          margin-bottom: 20px;
+          color: #ffffff;
+        }
+        .details {
+          font-size: 16px;
+          line-height: 1.6;
+          margin-bottom: 20px;
+          color: #ffffff;
+        }
+        .button {
+          display: inline-block;
+          padding: 10px 20px;
+          background-color: #0ca3a6;
+          color: #ffffff;
+          text-decoration: none;
+          border-radius: 5px;
+          font-weight: bold;
+          text-align: center;
+        }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="header">Reservation Confirmation</div>
+        <div class="greeting">Hi ${reservation.firstName},</div>
+        <div class="message">
+          We're excited to confirm your reservation at <strong>${
+            restaurant.name
+          }</strong>! Here are your reservation details:
         </div>
-      </body>
-      </html>
-    `;
+        <div class="details">
+          <p><strong>Date:</strong> ${reservation.date}</p>
+          <p><strong>Party Size:</strong> ${reservation.partySize}</p>
+          <p><strong>Table ID:</strong> ${reservation.tableId}</p>
+          <p><strong>Notes:</strong> ${reservation.notes || "None"}</p>
+        </div>
+        <p>Your table will be held for 15 minutes after the reserved time. Please let us know if there are any changes.</p>
+        <div style="text-align: center;">
+          <a href="https://tabit-clone-app.vercel.app/online-reservations/reservation-details?reservationId=/${
+            reservation.reservationId
+          }" class="button">View Reservation</a>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
 
     // Define email options
     const mailOptions: nodemailer.SendMailOptions = {
