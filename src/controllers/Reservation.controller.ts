@@ -3,13 +3,171 @@ import { connectDB } from "../config/db";
 import { RowDataPacket, ResultSetHeader } from "mysql2/promise";
 import { IReservation, IRestaurant } from "../types/types";
 import { Twilio } from "twilio";
+import nodemailer from "nodemailer";
 import moment from "moment-timezone"; // Import moment-timezone for timezone handling
 // Add a reservation
+export const convertISOToSQLDateTime = (isoString: string) => {
+  if (typeof isoString === "string" && isoString.endsWith("Z")) {
+    // Parse the ISO string to a Date object in UTC
+    const date = new Date(isoString);
+
+    // Extract components in UTC
+    const year = date.getUTCFullYear();
+    const month = String(date.getUTCMonth() + 1).padStart(2, "0");
+    const day = String(date.getUTCDate()).padStart(2, "0");
+    const hours = String(date.getUTCHours()).padStart(2, "0");
+    const minutes = String(date.getUTCMinutes()).padStart(2, "0");
+    const seconds = String(date.getUTCSeconds()).padStart(2, "0");
+
+    // Format to 'YYYY-MM-DD HH:MM:SS'
+    return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+  } else {
+    console.error("Invalid ISO format:", isoString);
+    return null; // Return null if the format is invalid
+  }
+};
+export const parseCustomDateTime = (dateTimeString: string) => {
+  // Check if the string matches the expected format
+  if (
+    typeof dateTimeString === "string" &&
+    /^\d{2}-\d{2}-\d{4}T\d{2}:\d{2}$/.test(dateTimeString)
+  ) {
+    const [datePart, timePart] = dateTimeString.split("T");
+    const [day, month, year] = datePart.split("-").map(Number);
+    const [hours, minutes] = timePart.split(":").map(Number);
+
+    // Create a new Date object with the parsed values
+    return new Date(year, month - 1, day, hours, minutes);
+  } else {
+    console.error("Invalid date format:", dateTimeString);
+    return null; // Return null if the format is invalid
+  }
+};
+
+export async function sendReservationEmail(
+  reservation: IReservation,
+  restaurant: IRestaurant
+): Promise<void> {
+  const { EMAIL, EMAIL_PASSWORD } = process.env;
+
+  if (!EMAIL || !EMAIL_PASSWORD) {
+    console.error("Email credentials are missing.");
+    throw new Error("Email credentials are not properly configured.");
+  }
+
+  try {
+    // Create a transporter using SMTP settings
+    const transporter = nodemailer.createTransport({
+      service: "gmail",
+      auth: {
+        user: EMAIL,
+        pass: EMAIL_PASSWORD,
+      },
+    });
+
+    // Define the HTML content with styling for a reservation approval
+    const htmlContent = `
+    <html>
+    <head>
+      <style>
+        body {
+          background-color: #212121;
+          color: #ffffff;
+          font-family: 'BetonEF', Arial, sans-serif;
+          padding: 20px;
+        }
+        .container {
+          max-width: 600px;
+          margin: 0 auto;
+          background-color: #333333;
+          padding: 20px;
+          border-radius: 8px;
+          color: #ffffff;
+        }
+        .header {
+          text-align: center;
+          font-size: 24px;
+          font-weight: bold;
+          margin-bottom: 20px;
+          color: #ffffff;
+        }
+        .greeting {
+          font-size: 18px;
+          margin-bottom: 10px;
+          color: #ffffff;
+        }
+        .message {
+          font-size: 16px;
+          line-height: 1.6;
+          margin-bottom: 20px;
+          color: #ffffff;
+        }
+        .details {
+          font-size: 16px;
+          line-height: 1.6;
+          margin-bottom: 20px;
+          color: #ffffff;
+        }
+        .button {
+          display: inline-block;
+          padding: 10px 20px;
+          background-color: #0ca3a6;
+          color: #ffffff;
+          text-decoration: none;
+          border-radius: 5px;
+          font-weight: bold;
+          text-align: center;
+        }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="header">Reservation Confirmation</div>
+        <div class="greeting">Hi ${reservation.firstName},</div>
+        <div class="message">
+          We're excited to confirm your reservation at <strong>${
+            restaurant.name
+          }</strong>! Here are your reservation details:
+        </div>
+        <div class="details">
+          <p><strong>Date:</strong> ${reservation.date}</p>
+          <p><strong>Party Size:</strong> ${reservation.partySize}</p>
+          <p><strong>Table ID:</strong> ${reservation.tableId}</p>
+          <p><strong>Notes:</strong> ${reservation.notes || "None"}</p>
+        </div>
+        <p>Your table will be held for 15 minutes after the reserved time. Please let us know if there are any changes.</p>
+        <div style="text-align: center;">
+          <a href="https://tabit-clone-app.vercel.app/online-reservations/reservation-details?reservationId=/${
+            reservation.reservationId
+          }" class="button">View Reservation</a>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+
+    // Define email options
+    const mailOptions: nodemailer.SendMailOptions = {
+      from: EMAIL,
+      to: reservation.email,
+      subject: `Your Reservation at ${restaurant.name} - Confirmation`,
+      html: htmlContent,
+    };
+
+    // Send the email
+    const info = await transporter.sendMail(mailOptions);
+    console.log("Email sent: " + info.response);
+  } catch (error: any) {
+    console.error("Error sending reservation email:", error);
+    throw new Error(`Failed to send reservation email: ${error.message}`);
+  }
+}
+
 export async function addReservation(
   req: Request,
   res: Response
 ): Promise<void> {
-  const {
+  let {
     tableId,
     restId,
     partySize,
@@ -44,6 +202,10 @@ export async function addReservation(
     connection = await pool.getConnection();
 
     // Convert the date string into a Date object
+    console.log(typeof date);
+    if (date.indexOf("-") != -1) {
+      date = parseCustomDateTime(date);
+    }
     const reservationDate = new Date(date);
     const startTime = new Date(reservationDate);
     const endTime = new Date(reservationDate);
@@ -56,13 +218,20 @@ export async function addReservation(
     endTime.setMinutes(endTime.getMinutes() + 30);
 
     // Check if there's any overlapping reservation on this table
+    console.log(startTime, endTime);
+
     const [existingReservations]: [RowDataPacket[], any] =
       await connection.query(
         `SELECT * FROM Reservations 
        WHERE tableId = ? 
        AND restId = ?
        AND (date > ? AND date < ?)`,
-        [tableId, restId, startTime, endTime]
+        [
+          tableId,
+          restId,
+          convertISOToSQLDateTime(startTime.toISOString()),
+          convertISOToSQLDateTime(endTime.toISOString()),
+        ]
       );
 
     if (existingReservations.length > 0) {
@@ -116,7 +285,9 @@ export async function addReservation(
       date: reservationDate,
       notes,
     };
+    sendReservationEmail(reservation, restaurant);
     // sendSMS(reservation, restaurant);
+
     res.status(201).json({
       message: "Reservation created successfully",
       reservationId: reservationId,
@@ -349,13 +520,16 @@ export async function getReservationById(
     }
 
     const reservation = rows[0][0]; // Get the first row
+    console.log(reservation.date);
 
     // Convert the date to the local timezone
     if (reservation.date) {
-      reservation.date = moment(reservation.date)
+      reservation.date = moment(reservation.date, "DD-MM-YYYYTHH:mm")
         .tz("Asia/Jerusalem") // Convert to Israel timezone
         .format("YYYY-MM-DD HH:mm:ss"); // Format as MySQL DATETIME
     }
+
+    console.log(reservation);
 
     // Return the fetched reservation data
     res.status(200).json(reservation); // Return the reservation object
