@@ -123,7 +123,9 @@ export async function sendReservationEmail(
     <body>
       <div class="container">
         <div class="header">Reservation Confirmation</div>
-        <div class="greeting">Hi ${reservation.firstName},</div>
+        <div class="greeting">Hi ${reservation.firstName}${
+      reservation.lastName
+    },</div>
         <div class="message">
           We're excited to confirm your reservation at <strong>${
             restaurant.name
@@ -132,12 +134,11 @@ export async function sendReservationEmail(
         <div class="details">
           <p><strong>Date:</strong> ${reservation.date}</p>
           <p><strong>Party Size:</strong> ${reservation.partySize}</p>
-          <p><strong>Table ID:</strong> ${reservation.tableId}</p>
           <p><strong>Notes:</strong> ${reservation.notes || "None"}</p>
         </div>
         <p>Your table will be held for 15 minutes after the reserved time. Please let us know if there are any changes.</p>
         <div style="text-align: center;">
-          <a href="https://tabit-clone-app.vercel.app/online-reservations/reservation-details?reservationId=/${
+          <a href="https://tabit-clone-app.vercel.app/online-reservations/reservation-details?reservationId=${
             reservation.reservationId
           }" class="button">View Reservation</a>
         </div>
@@ -151,6 +152,121 @@ export async function sendReservationEmail(
       from: EMAIL,
       to: reservation.email,
       subject: `Your Reservation at ${restaurant.name} - Confirmation`,
+      html: htmlContent,
+    };
+
+    // Send the email
+    const info = await transporter.sendMail(mailOptions);
+    console.log("Email sent: " + info.response);
+  } catch (error: any) {
+    console.error("Error sending reservation email:", error);
+    throw new Error(`Failed to send reservation email: ${error.message}`);
+  }
+}
+
+export async function sendCancelationEmail(
+  reservation: IReservation,
+  restaurant: IRestaurant
+): Promise<void> {
+  const { EMAIL, EMAIL_PASSWORD } = process.env;
+
+  if (!EMAIL || !EMAIL_PASSWORD) {
+    console.error("Email credentials are missing.");
+    throw new Error("Email credentials are not properly configured.");
+  }
+
+  try {
+    // Create a transporter using SMTP settings
+    const transporter = nodemailer.createTransport({
+      service: "gmail",
+      auth: {
+        user: EMAIL,
+        pass: EMAIL_PASSWORD,
+      },
+    });
+
+    // Define the HTML content with styling for a reservation approval
+    const htmlContent = `
+    <html>
+    <head>
+      <style>
+      body {
+        background-color: #212121;
+        color: #ffffff;
+        font-family: 'BetonEF', Arial, sans-serif;
+        padding: 20px;
+      }
+      .container {
+        max-width: 600px;
+        margin: 0 auto;
+        background-color: #333333;
+        padding: 20px;
+        border-radius: 8px;
+        color: #ffffff;
+      }
+      .header {
+        text-align: center;
+        font-size: 24px;
+        font-weight: bold;
+        margin-bottom: 20px;
+        color: #ffffff;
+      }
+      .greeting {
+        font-size: 18px;
+        margin-bottom: 10px;
+        color: #ffffff;
+      }
+      .message {
+        font-size: 16px;
+        line-height: 1.6;
+        margin-bottom: 20px;
+        color: #ffffff;
+      }
+      .details {
+        font-size: 16px;
+        line-height: 1.6;
+        margin-bottom: 20px;
+        color: #ffffff;
+      }
+      .button {
+        display: inline-block;
+        padding: 10px 20px;
+        background-color: #0ca3a6;
+        color: #ffffff;
+        text-decoration: none;
+        border-radius: 5px;
+        font-weight: bold;
+        text-align: center;
+      }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+      <div class="header">Reservation Cancelation</div>
+      <div class="greeting">Hi ${reservation.firstName}${
+      reservation.lastName
+    },</div>
+      <div class="message">
+        We regret to inform you that your reservation at <strong>${
+          restaurant.name
+        }</strong> has been canceled. Here are your reservation details:
+      </div>
+      <div class="details">
+        <p><strong>Date:</strong> ${reservation.date}</p>
+        <p><strong>Party Size:</strong> ${reservation.partySize}</p>
+        <p><strong>Notes:</strong> ${reservation.notes || "None"}</p>
+      </div>
+      <p>If you have any questions or need further assistance, please contact us.</p>
+      </div>
+    </body>
+    </html>
+    `;
+
+    // Define email options
+    const mailOptions: nodemailer.SendMailOptions = {
+      from: EMAIL,
+      to: reservation.email,
+      subject: `Your Reservation at ${restaurant.name} - Cancelation`,
       html: htmlContent,
     };
 
@@ -202,7 +318,6 @@ export async function addReservation(
     connection = await pool.getConnection();
 
     // Convert the date string into a Date object
-    console.log(typeof date);
     if (date.indexOf("-") != -1) {
       date = parseCustomDateTime(date);
     }
@@ -438,7 +553,6 @@ export async function editReservation(
 }
 
 // Delete a reservation
-
 export async function deleteReservation(
   req: Request,
   res: Response
@@ -459,6 +573,33 @@ export async function deleteReservation(
     connection = await pool.getConnection();
     console.log("Database connection established.");
 
+    // Execute the stored procedure
+    const [rows]: [RowDataPacket[], any] = await connection.query(
+      `CALL get_reservation_by_id(?)`,
+      [reservationId]
+    );
+
+    // Check if any result is returned
+    if (!rows || rows.length === 0 || rows[0].length === 0) {
+      res.status(404).json({ message: "Reservation not found." });
+      return;
+    }
+
+    const reservationData = rows[0][0]; // Get the first row
+
+    // Fetch the restaurant details
+    const [restaurantRows]: [RowDataPacket[], any] = await connection.query(
+      `SELECT * FROM Restaurants WHERE restId = ?`,
+      [reservationData.restId]
+    );
+
+    if (!restaurantRows || restaurantRows.length === 0) {
+      res.status(404).json({ message: "Restaurant not found." });
+      return;
+    }
+
+    const restaurantData: IRestaurant = restaurantRows[0] as IRestaurant;
+
     // Delete the reservation by ID
     console.log(`Executing query to delete reservation ID: ${reservationId}`);
     const [result]: [ResultSetHeader, any] = await connection.query(
@@ -472,6 +613,7 @@ export async function deleteReservation(
       return;
     }
 
+    sendCancelationEmail(reservationData, restaurantData);
     console.log("Reservation deleted successfully.");
     res.status(200).json({ message: "Reservation deleted successfully." });
   } catch (error: any) {
