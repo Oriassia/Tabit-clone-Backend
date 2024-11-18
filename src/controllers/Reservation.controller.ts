@@ -127,7 +127,7 @@ export async function sendReservationEmail(
     <body>
       <div class="container">
         <div class="header">Reservation Confirmation</div>
-        <div class="greeting">Hi ${reservation.firstName}${
+        <div class="greeting">Hi ${reservation.firstName} ${
       reservation.lastName
     },</div>
         <div class="message">
