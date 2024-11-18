@@ -55,36 +55,37 @@ export function sendSMSgiftCard(giftCard: IGiftCard): void {
 export async function sendMail({
   to,
   subject,
-  text,
   html,
 }: MailOptions): Promise<void> {
+  const { EMAIL, EMAIL_PASSWORD } = process.env;
+
+  if (!EMAIL || !EMAIL_PASSWORD) {
+    console.error("Email credentials are missing.");
+    throw new Error("Email credentials are not properly configured.");
+  }
+
   try {
     // Create a transporter using your email service provider's SMTP settings
     const transporter = nodemailer.createTransport({
-      service: "gmail", // Service provider, can be 'gmail', 'yahoo', 'outlook', etc.
+      service: "gmail",
       auth: {
-        user: process.env.EMAIL, // Sender email address from environment variable
-        pass: process.env.EMAIL_PASSWORD, // Email password or app-specific password from environment variable
+        user: EMAIL,
+        pass: EMAIL_PASSWORD,
       },
     });
 
-    // Define the email options
     const mailOptions: nodemailer.SendMailOptions = {
-      from: process.env.EMAIL, // Sender address
-      to: to, // List of recipients
-      subject: subject, // Subject line
-      text: text, // Plain text body
-      html: html, // HTML body
+      from: EMAIL,
+      to,
+      subject,
+      html,
     };
 
-    // Send the email
     const info = await transporter.sendMail(mailOptions);
-
     console.log("Email sent: " + info.response);
   } catch (error: any) {
-    // Use 'any' type for error to avoid TypeScript errors
     console.error("Error sending email:", error);
-    throw new Error(`Failed to send email: ${error.message}`); // Throw a new Error with a message
+    throw new Error(`Failed to send email: ${error.message}`);
   }
 }
 
