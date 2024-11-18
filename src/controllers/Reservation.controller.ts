@@ -48,7 +48,11 @@ export async function sendReservationEmail(
   reservation: IReservation,
   restaurant: IRestaurant
 ): Promise<void> {
+  console.log("executing Email...");
+
   const { EMAIL, EMAIL_PASSWORD } = process.env;
+  console.log("Email:", EMAIL);
+  console.log("Email_password:", EMAIL_PASSWORD);
 
   if (!EMAIL || !EMAIL_PASSWORD) {
     console.error("Email credentials are missing.");
@@ -69,20 +73,20 @@ export async function sendReservationEmail(
     const htmlContent = `
     <html>
     <head>
-      <style>
-        body {
-          background-color: #212121;
-          color: #ffffff;
-          font-family: 'BetonEF', Arial, sans-serif;
-          padding: 20px;
-        }
-        .container {
-          max-width: 600px;
-          margin: 0 auto;
-          background-color: #333333;
-          padding: 20px;
-          border-radius: 8px;
-          color: #ffffff;
+    <style>
+    body {
+      background-color: #212121;
+      color: #ffffff;
+      font-family: 'BetonEF', Arial, sans-serif;
+      padding: 20px;
+      }
+      .container {
+        max-width: 600px;
+        margin: 0 auto;
+        background-color: #333333;
+        padding: 20px;
+        border-radius: 8px;
+        color: #ffffff;
         }
         .header {
           text-align: center;
@@ -90,8 +94,8 @@ export async function sendReservationEmail(
           font-weight: bold;
           margin-bottom: 20px;
           color: #ffffff;
-        }
-        .greeting {
+          }
+          .greeting {
           font-size: 18px;
           margin-bottom: 10px;
           color: #ffffff;
@@ -154,6 +158,8 @@ export async function sendReservationEmail(
       subject: `Your Reservation at ${restaurant.name} - Confirmation`,
       html: htmlContent,
     };
+
+    console.log("Sending Email...");
 
     // Send the email
     const info = await transporter.sendMail(mailOptions);
@@ -333,14 +339,14 @@ export async function addReservation(
     endTime.setMinutes(endTime.getMinutes() + 30);
 
     // Check if there's any overlapping reservation on this table
-    console.log(startTime, endTime);
+    console.log("[addReservation-func]-overlapping check:", startTime, endTime);
 
     const [existingReservations]: [RowDataPacket[], any] =
       await connection.query(
         `SELECT * FROM Reservations 
-       WHERE tableId = ? 
-       AND restId = ?
-       AND (date > ? AND date < ?)`,
+      WHERE tableId = ? 
+      AND restId = ?
+      AND (date > ? AND date < ?)`,
         [
           tableId,
           restId,
