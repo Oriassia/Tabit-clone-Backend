@@ -51,8 +51,6 @@ export async function sendReservationEmail(
   console.log("executing Email...");
 
   const { EMAIL, EMAIL_PASSWORD } = process.env;
-  console.log("Email:", EMAIL);
-  console.log("Email_password:", EMAIL_PASSWORD);
 
   if (!EMAIL || !EMAIL_PASSWORD) {
     console.error("Email credentials are missing.");
