@@ -156,7 +156,7 @@ export async function sendReservationEmail(
         </div>
         <p>Your table will be held for 15 minutes after the reserved time. Please let us know if there are any changes.</p>
         <div style="text-align: center;">
-          <a href="https://tabit-clone-app.vercel.app/online-reservations/reservation-details?reservationId=${
+          <a href="https://tabit-clone.vercel.app/online-reservations/reservation-details?reservationId=${
             reservation.reservationId
           }" class="button">View Reservation</a>
         </div>
