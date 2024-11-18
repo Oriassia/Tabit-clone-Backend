@@ -131,12 +131,26 @@ export async function sendReservationEmail(
       reservation.lastName
     },</div>
         <div class="message">
-          We're excited to confirm your reservation at <strong>${
-            restaurant.name
-          }</strong>! Here are your reservation details:
+        We're excited to confirm your reservation at <strong>${
+          restaurant.name
+        }</strong>! 
         </div>
+        
+        <div class="message">
+          Here are your reservation details:
+          </div>
         <div class="details">
-          <p><strong>Date:</strong> ${reservation.date}</p>
+          <p><strong>Date:</strong> ${new Date(reservation.date).toLocaleString(
+            "en-US",
+            {
+              weekday: "long",
+              year: "numeric",
+              month: "long",
+              day: "numeric",
+              hour: "2-digit",
+              minute: "2-digit",
+            }
+          )}</p>
           <p><strong>Party Size:</strong> ${reservation.partySize}</p>
           <p><strong>Notes:</strong> ${reservation.notes || "None"}</p>
         </div>
@@ -668,16 +682,8 @@ export async function getReservationById(
     }
 
     const reservation = rows[0][0]; // Get the first row
-    console.log(reservation.date);
-
-    // Convert the date to the local timezone
-    if (reservation.date) {
-      reservation.date = moment(reservation.date, "DD-MM-YYYYTHH:mm")
-        .tz("Asia/Jerusalem") // Convert to Israel timezone
-        .format("YYYY-MM-DD HH:mm:ss"); // Format as MySQL DATETIME
-    }
-
-    console.log(reservation);
+    console.log("[BE-get-reservation]-date:", reservation.date);
+    console.log("[BE-get-reservation]-reservation data:", reservation);
 
     // Return the fetched reservation data
     res.status(200).json(reservation); // Return the reservation object
